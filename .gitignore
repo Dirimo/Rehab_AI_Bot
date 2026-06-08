@@ -1,0 +1,81 @@
+# ============================================================
+# SECRETS & CONFIGURATION LOCALE — ne jamais publier
+# ============================================================
+# Contient les vrais credentials : DATABASE_URL avec user/password PostgreSQL,
+# et toute clé API ajoutée ultérieurement.
+.env
+.env.local
+.env.*.local
+
+# ============================================================
+# BASE DE DONNÉES LOCALE (SQLite dev)
+# ============================================================
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================================
+# PYTHON
+# ============================================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Environnements virtuels
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Mypy
+.mypy_cache/
+
+# ============================================================
+# NODE / NUXT (Membre 1 — Frontend)
+# ============================================================
+node_modules/
+.nuxt/
+.output/
+.cache/
+dist/
+
+# ============================================================
+# DOCKER
+# ============================================================
+# Volumes Docker locaux (si montés dans le repo)
+postgres_data/
+pgdata/
+
+# ============================================================
+# LOGS
+# ============================================================
+*.log
+logs/
+
+# ============================================================
+# OS
+# ============================================================
+.DS_Store
+Thumbs.db
+
+# ============================================================
+# IDE
+# ============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
