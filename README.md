@@ -77,6 +77,33 @@ Navigateur (Nuxt 3)
 
 ---
 
+### Membre 4 — LLM / Prompts / Contexte (Ollama) ✅ TERMINÉ
+
+**Fichiers livrés :**
+| Fichier | Description |
+|---------|-------------|
+| `backend/app/agent_loop.py` | SYSTEM_PROMT finalisé + MAX_HISTORY_MESSAGE=40 |
+| `backend/.env` | OLLAMA_MODEL=LLaMA3.2 configuré |
+| `llm/model_comparison.md` | comparaison Qwen3 1.7B vs LLaMA3.2 + choix justifié  |
+| `llm/system_prompt.md` | historique et versions du prompt système |
+| `llm/test_questions.md` | jeu de questions de test + évaluation qualitative |
+
+**Décisions techniques :**
+| Décision | Valeur | Justification |
+|---------|-------|-------------|
+| Modèle retenu | `llama3.2` | Respect des garde-fous, français correct, anatomie sûre |
+| Modèle écarté | `qwen3 1.7b` | Hallucitions dangereuses, dosages erronés, anatomie aberrante |
+| `MAX_HISTORY_MESSAGES` | `40` | Fenêtre de contexte LLaMa 3.2 : 128K tokens |
+| `MAX_TOOL_ITERATIONS` | `5` | Valeur par défaut conservée |
+
+
+**Points d'intégration réalisés:**
+- SYSTEM_PROMPT définit les conditions d'appel des tools vs réponse directe
+- Garde-fous implémentés: refus dosages, refus diagnostic, redirection urgences vers le 15
+- AVAILABLE_TOOLS dans mcp_client.py validé
+- 
+---
+
 ### Membre 1 — Frontend / UX (Nuxt 3) ❌ À FAIRE
 
 **Ce qui reste à faire :**
@@ -122,27 +149,6 @@ Le backend appelle `POST http://localhost:8001/tools/{tool_name}` avec le body J
 
 En cas d'erreur, retourner : `{ "error": "description" }` (le backend gère ce cas proprement).
 Voir le contrat complet dans les commentaires de `backend/app/mcp_client.py`.
-
----
-
-### Membre 4 — LLM / Prompts / Contexte (Ollama) ❌ À FAIRE
-
-**Ce qui reste à faire :**
-- [ ] Installer et configurer Ollama en local (`ollama serve`)
-- [ ] Télécharger les modèles : `ollama pull qwen3:1.7b` et `ollama pull llama3.2`
-- [ ] Comparer les deux modèles et choisir le plus adapté
-- [ ] Configurer `OLLAMA_MODEL` dans `backend/.env`
-- [ ] Rédiger et versionner le prompt système final dans `backend/app/agent_loop.py`
-  → Remplacer la constante `SYSTEM_PROMPT` (marquée `► MEMBRE 4` dans le fichier)
-- [ ] Ajuster `MAX_HISTORY_MESSAGES` selon la fenêtre de contexte du modèle retenu
-- [ ] Définir dans le prompt les conditions d'appel des tools vs réponse directe
-- [ ] Implémenter les garde-fous (refus questions médicales critiques)
-- [ ] Rédiger un jeu de questions de test + évaluation qualitative
-
-**Points d'intégration avec le backend :**
-- Le prompt système est dans `backend/app/agent_loop.py` → constante `SYSTEM_PROMPT`
-- Les tools disponibles (descriptions pour le LLM) sont dans `backend/app/mcp_client.py` → liste `AVAILABLE_TOOLS`
-- Le modèle Ollama doit tourner sur `OLLAMA_BASE_URL=http://localhost:11434`
 
 ---
 
