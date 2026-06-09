@@ -101,7 +101,7 @@ Navigateur (Nuxt 3)
 - SYSTEM_PROMPT définit les conditions d'appel des tools vs réponse directe
 - Garde-fous implémentés: refus dosages, refus diagnostic, redirection urgences vers le 15
 - AVAILABLE_TOOLS dans mcp_client.py validé
-- 
+  
 ---
 
 ### Membre 1 — Frontend / UX (Nuxt 3) ❌ À FAIRE
