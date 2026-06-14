@@ -1,0 +1,41 @@
+# ---------------------------------------------------------------------------
+# RehabBot .gitignore
+# Tells git what should NEVER be committed to the repository.
+# ---------------------------------------------------------------------------
+
+# Secrets & environment ------------------------------------------------------
+# Real .env files contain passwords/API URLs and must stay local.
+# We only commit .env.example (a template with no secrets).
+.env
+.env.*
+!.env.example
+
+# Python (backend + mcp-server) ---------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / Nuxt (frontend) -----------------------------------------------------
+node_modules/
+.nuxt/
+.output/
+.nitro/
+dist/
+*.log
+
+# Databases (local dev files) -----------------------------------------------
+*.sqlite
+*.sqlite3
+*.db
+
+# Editors / OS ---------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

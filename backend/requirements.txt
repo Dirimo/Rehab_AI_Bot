@@ -1,0 +1,9 @@
+# RehabBot backend (Member 2 — FastAPI orchestrator)
+# Install into a virtual environment:  pip install -r requirements.txt
+
+fastapi==0.128.0          # web framework: routes, WebSocket, auto Swagger docs
+uvicorn[standard]==0.34.0 # ASGI server that runs the FastAPI app
+sqlmodel==0.0.38          # ORM: DB tables as Python classes (SQLAlchemy + Pydantic)
+psycopg[binary]==3.3.4    # PostgreSQL driver (works with SQLAlchemy async engine)
+pydantic-settings==2.7.0  # load configuration from environment variables / .env
+httpx==0.28.1             # async HTTP client (used later to call Ollama and MCP)
