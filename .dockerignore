@@ -1,0 +1,34 @@
+# Git & secrets
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Python virtualenvs & caches
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+mcp-server/.cache
+
+# Node / Nuxt build artifacts (rebuilt inside Docker)
+**/node_modules
+**/.nuxt
+**/.output
+frontend/dist
+
+# Editors & OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Docs & local scripts (not needed in images)
+docs
+scripts
+*.md
+!README.md

@@ -1,0 +1,90 @@
+# RehabBot — Docker Compose (Member 5)
+#
+# Starts: PostgreSQL, MCP server, FastAPI backend, Nuxt frontend.
+# Ollama runs on the HOST (not in Compose) — the backend reaches it via
+# host.docker.internal:11434. Pull the model first:
+#   ollama pull qwen3.5:9b-q4_K_M
+#
+# Usage:
+#   docker compose up --build
+#   open http://localhost:3000
+
+name: rehabbot
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rehabbot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: rehabbot
+      POSTGRES_DB: rehabbot
+    ports:
+      - "5432:5432"
+    volumes:
+      - rehabbot_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rehabbot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mcp-server:
+    build:
+      context: ./mcp-server
+    container_name: rehabbot-mcp
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8001
+      SCRAPING_RATE_LIMIT_SECONDS: "2"
+    volumes:
+      - mcp_http_cache:/app/.cache
+
+  backend:
+    build:
+      context: ./backend
+    container_name: rehabbot-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mcp-server:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:rehabbot@postgres:5432/rehabbot
+      SESSION_EXPIRATION_DAYS: "21"
+      MCP_BASE_URL: http://mcp-server:8001
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: qwen3.5:9b-q4_K_M
+      OLLAMA_THINK: "false"
+      OLLAMA_NUM_PREDICT: "1024"
+      OLLAMA_TIMEOUT_SECONDS: "180"
+      AGENT_MAX_HISTORY_MESSAGES: "20"
+      AGENT_MAX_TOOL_ROUNDS: "2"
+      CORS_ORIGINS: '["http://localhost:3000"]'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NUXT_PUBLIC_API_BASE: http://localhost:8000
+        NUXT_PUBLIC_WS_BASE: ws://localhost:8000
+    container_name: rehabbot-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  rehabbot_pg_data:
+  mcp_http_cache:

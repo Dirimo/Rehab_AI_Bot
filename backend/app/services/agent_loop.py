@@ -89,10 +89,11 @@ class AgentLoop:
         tool_rounds = 0
 
         while tool_rounds <= settings.AGENT_MAX_TOOL_ROUNDS:
+            use_tools = tool_rounds < settings.AGENT_MAX_TOOL_ROUNDS
             try:
                 response = await self.ollama.chat(
                     ollama_messages,
-                    tools=OLLAMA_TOOLS,
+                    tools=OLLAMA_TOOLS if use_tools else None,
                     stream=False,
                 )
             except OllamaError as exc:
@@ -100,9 +101,9 @@ class AgentLoop:
 
             assistant_message = response.get("message", {})
             tool_calls = assistant_message.get("tool_calls") or []
+            final_content = self._extract_content(assistant_message)
 
             if not tool_calls:
-                final_content = (assistant_message.get("content") or "").strip()
                 break
 
             # Model wants to use tools — hand off to Member 3 (MCP).
@@ -126,14 +127,29 @@ class AgentLoop:
                 payload = await self.mcp.call_tool(tool_name, arguments)
                 await self._log_tool_call(session_id, payload)
 
+                # Ollama expects tool_name on tool-role messages.
                 ollama_messages.append(
                     {
                         "role": ROLE_TOOL,
+                        "tool_name": tool_name,
                         "content": self.mcp.tool_result_content(payload),
                     }
                 )
 
             await self._emit(STATUS_THINKING, on_status)
+
+        # If the model kept calling tools without answering, force a final reply.
+        if not final_content:
+            await self._emit(STATUS_THINKING, on_status)
+            try:
+                response = await self.ollama.chat(
+                    ollama_messages,
+                    tools=None,
+                    stream=False,
+                )
+                final_content = self._extract_content(response.get("message", {}))
+            except OllamaError as exc:
+                raise AgentLoopError(str(exc)) from exc
 
         if not final_content:
             final_content = (
@@ -185,6 +201,14 @@ class AgentLoop:
         )
         self.db.add(log)
         await self.db.commit()
+
+    @staticmethod
+    def _extract_content(message: dict[str, Any]) -> str:
+        content = (message.get("content") or "").strip()
+        if content:
+            return content
+        # Some models put reasoning in `thinking` when think=true; ignore for output.
+        return ""
 
     @staticmethod
     def _parse_tool_arguments(raw_args: Any) -> dict[str, Any]:

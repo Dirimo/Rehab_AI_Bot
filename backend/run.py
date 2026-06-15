@@ -1,27 +1,41 @@
 """Development launcher for the RehabBot backend.
 
 Why this file exists:
-On Windows, uvicorn creates its asyncio event loop BEFORE importing the app,
-so setting the event-loop policy inside app/main.py runs too late. Here we set
-the SelectorEventLoop policy first (psycopg's async mode requires it), then
-start uvicorn.
+On Windows, psycopg async cannot use the default ProactorEventLoop.
+We must start uvicorn on a SelectorEventLoop. On Python 3.14+ the old
+WindowsSelectorEventLoopPolicy is deprecated and no longer reliable, so we
+use asyncio.run(..., loop_factory=...) instead.
 
 Usage (from the backend/ folder, venv active):
     python run.py
 """
 
-import asyncio
-import sys
+from __future__ import annotations
 
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+import asyncio
+import selectors
+import sys
 
 import uvicorn
 
-if __name__ == "__main__":
-    uvicorn.run(
+
+def _windows_loop_factory() -> asyncio.AbstractEventLoop:
+    return asyncio.SelectorEventLoop(selectors.SelectSelector())
+
+
+async def _serve() -> None:
+    config = uvicorn.Config(
         "app.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=False,  # set True later for auto-reload during active dev
+        reload=False,
     )
+    server = uvicorn.Server(config)
+    await server.serve()
+
+
+if __name__ == "__main__":
+    if sys.platform == "win32":
+        asyncio.run(_serve(), loop_factory=_windows_loop_factory)
+    else:
+        asyncio.run(_serve())

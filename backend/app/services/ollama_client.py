@@ -26,11 +26,11 @@ class OllamaClient:
         self,
         base_url: str | None = None,
         model: str | None = None,
-        timeout_seconds: float = 120.0,
+        timeout_seconds: float | None = None,
     ) -> None:
         self.base_url = (base_url or settings.OLLAMA_BASE_URL).rstrip("/")
         self.model = model or settings.OLLAMA_MODEL
-        self.timeout_seconds = timeout_seconds
+        self.timeout_seconds = timeout_seconds or settings.OLLAMA_TIMEOUT_SECONDS
 
     async def is_available(self) -> bool:
         """True if Ollama responds on /api/tags (model may still need to be pulled)."""
@@ -53,6 +53,10 @@ class OllamaClient:
             "model": self.model,
             "messages": messages,
             "stream": stream,
+            "think": settings.OLLAMA_THINK,
+            "options": {
+                "num_predict": settings.OLLAMA_NUM_PREDICT,
+            },
         }
         if tools:
             payload["tools"] = tools
@@ -79,6 +83,10 @@ class OllamaClient:
             "model": self.model,
             "messages": messages,
             "stream": True,
+            "think": settings.OLLAMA_THINK,
+            "options": {
+                "num_predict": settings.OLLAMA_NUM_PREDICT,
+            },
         }
         if tools:
             payload["tools"] = tools

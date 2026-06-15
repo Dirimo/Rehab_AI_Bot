@@ -48,17 +48,40 @@ LLM configuration (Ollama + Qwen3 1.7B / LLaMA 3.2) is owned by Member 4.
 
 ## Getting started
 
-> Detailed instructions are filled in as each module is built.
+### Option A — Docker (recommandé pour la démo)
+
+**Prérequis :** Docker Desktop, Ollama sur l'hôte avec le modèle :
 
 ```bash
-# 1. Copy the environment template and adjust values
-cp .env.example .env
-
-# 2. (Coming soon) Start everything with Docker
-# docker compose up --build
+ollama pull qwen3.5:9b-q4_K_M
+ollama serve
 ```
+
+```bash
+docker compose up --build
+```
+
+| Service    | URL                          |
+| ---------- | ---------------------------- |
+| Frontend   | http://localhost:3000        |
+| API        | http://localhost:8000/docs   |
+| MCP        | http://localhost:8001/mcp    |
+| PostgreSQL | `postgres` / `rehabbot` @ 5432 |
+
+### Option B — Développement local
+
+```powershell
+# 1. Setup (venv + npm + .env)
+.\scripts\setup-dev.ps1
+
+# 2. Afficher les commandes des 3 terminaux
+.\scripts\start-dev.ps1
+```
+
+Copiez aussi `.env.example` vers `backend/.env` et ajustez `DATABASE_URL` si Postgres écoute sur un autre port (ex. `5434`).
+
+Documentation MCP : [`docs/architecture/mcp-tools.md`](docs/architecture/mcp-tools.md)
 
 ## Status
 
-This project is being built incrementally, one module at a time:
-Backend → MCP server → LLM → Frontend → DevOps/Docs.
+Stack complète : Backend, MCP multi-sources, Ollama, Frontend Nuxt, Docker Compose + scripts.
