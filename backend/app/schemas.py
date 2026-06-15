@@ -46,3 +46,18 @@ class MessageRead(BaseModel):
     role: str
     content: str
     created_at: datetime
+
+
+class ChatRequest(BaseModel):
+    """Body for POST /chat — user sends a message, agent returns a reply."""
+
+    session_id: str
+    content: str = Field(min_length=1, max_length=16000)
+
+
+class ChatResponse(BaseModel):
+    """Agent loop result returned to the client."""
+
+    session_id: str
+    reply: str
+    status: str = "completed"
