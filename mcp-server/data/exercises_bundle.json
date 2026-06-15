@@ -1,0 +1,101 @@
+{
+  "license": "Educational summaries; cite original URLs in responses.",
+  "exercises": [
+    {
+      "id": "knee-rolls",
+      "aliases": ["dos", "lombalgie", "back", "lombalgie en"],
+      "name": "Roulis des genoux (knee rolls)",
+      "zone": "dos",
+      "instructions": [
+        "Allongé, genoux fléchis, pieds à plat.",
+        "Garder le dos au sol, laisser tomber les genoux d'un côté puis de l'autre lentement."
+      ],
+      "sets": "3 séries de 10",
+      "provider": "NHS (résumé pédagogique)",
+      "source_url": "https://www.guysandstthomas.nhs.uk/health-information/low-back-pain/physiotherapy-and-exercises"
+    },
+    {
+      "id": "pelvic-tilt",
+      "aliases": ["dos", "lombalgie", "back"],
+      "name": "Bascule du bassin (pelvic tilt)",
+      "zone": "dos",
+      "instructions": [
+        "Allongé, genoux fléchis.",
+        "Aplatir le bas du dos contre le sol en contractant les abdominaux.",
+        "Maintenir 5 secondes, relâcher."
+      ],
+      "sets": "10 répétitions",
+      "provider": "NHS (résumé pédagogique)",
+      "source_url": "https://www.guysandstthomas.nhs.uk/health-information/low-back-pain/physiotherapy-and-exercises"
+    },
+    {
+      "id": "shoulder-pendulum",
+      "aliases": ["epaule", "épaule", "shoulder", "coiffe"],
+      "name": "Pendulaires d'épaule",
+      "zone": "epaule",
+      "instructions": [
+        "Se pencher légèrement en avant, main saine sur une table.",
+        "Laisser le bras affecté pendre et effectuer de petits cercles.",
+        "Augmenter l'amplitude seulement sans douleur vive."
+      ],
+      "sets": "2 minutes par sens",
+      "provider": "NHS Dynamic Health (résumé)",
+      "source_url": "https://www.dynamichealth.nhs.uk/help-and-advice/shoulder-pain/"
+    },
+    {
+      "id": "straight-leg-raise",
+      "aliases": ["genou", "knee", "quadriceps"],
+      "name": "Élévation de jambe tendue",
+      "zone": "genou",
+      "instructions": [
+        "Allongé, une jambe fléchie, l'autre tendue.",
+        "Soulever la jambe tendue d'environ 10 cm, genou verrouillé.",
+        "Tenir 5 secondes, redescendre lentement."
+      ],
+      "sets": "3 x 10 par jambe",
+      "provider": "NHS Bradford (résumé)",
+      "source_url": "https://www.bradfordhospitals.nhs.uk/wp-content/uploads/2022/12/Managing-my-Patellofemoral-Pain.pdf"
+    },
+    {
+      "id": "internal-rotation-band",
+      "aliases": ["epaule", "coiffe", "rotateur"],
+      "name": "Rotation interne avec élastique",
+      "zone": "epaule",
+      "instructions": [
+        "Élastique fixé à hauteur de coude, coude plié à 90° contre le corps.",
+        "Tourner l'avant-bras vers le ventre contre la résistance.",
+        "Mouvement lent, sans hausser l'épaule."
+      ],
+      "sets": "3 x 12",
+      "provider": "MedlinePlus (résumé)",
+      "source_url": "https://medlineplus.gov/ency/patientinstructions/000357.htm"
+    },
+    {
+      "id": "bridge",
+      "aliases": ["dos", "lombalgie", "fessiers"],
+      "name": "Pont fessier (bridge)",
+      "zone": "dos",
+      "instructions": [
+        "Allongé, genoux fléchis.",
+        "Soulever le bassin jusqu'à aligner genoux-hanches-épaules.",
+        "Tenir 5 secondes, redescendre."
+      ],
+      "sets": "3 x 10",
+      "provider": "NHS (résumé pédagogique)",
+      "source_url": "https://www.guysandstthomas.nhs.uk/health-information/low-back-pain/physiotherapy-and-exercises"
+    },
+    {
+      "id": "ankle-pumps",
+      "aliases": ["cheville", "ankle", "jambe"],
+      "name": "Pompage cheville (ankle pumps)",
+      "zone": "cheville",
+      "instructions": [
+        "Assis ou allongé, pointer les orteils puis les ramener vers soi.",
+        "Mouvement fluide pour stimuler la circulation."
+      ],
+      "sets": "20 répétitions toutes les heures",
+      "provider": "Rééducation standard (résumé)",
+      "source_url": "https://medlineplus.gov/ency/patientinstructions/000171.htm"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# RehabBot MCP server (Member 3 — FastMCP + scraping)
+# Install: python -m venv .venv && .venv\Scripts\pip install -r requirements.txt
+
+fastmcp==3.4.2          # MCP server framework (HTTP transport on port 8001)
+httpx[http2]==0.28.1    # async HTTP client (HTTP/2 + browser-like headers)
+beautifulsoup4==4.14.3  # HTML parsing (static pages)
+pypdf==5.4.0            # PDF text extraction (hospital livrets)
+pydantic-settings==2.7.0  # load SCRAPING_RATE_LIMIT_SECONDS from .env
+python-dotenv==1.2.2

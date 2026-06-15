@@ -1,19 +1,12 @@
 """MCP tool client (Member 2 → Member 3).
 
-Member 3 will run a FastMCP server (port 8001) exposing scraping tools.
-For now this client:
-  - defines the tool schemas we send to Ollama
-  - returns a clear stub response when the MCP server is not reachable
-
-When Member 3's server exists, we will call:
-  fastmcp.Client(f"{MCP_BASE_URL}/mcp").call_tool(name, arguments)
+Calls the FastMCP HTTP server started by Member 3:
+  fastmcp.Client("http://localhost:8001/mcp").call_tool(name, arguments)
 """
 
 import json
 import time
 from typing import Any
-
-import httpx
 
 from app.config import settings
 
@@ -23,7 +16,7 @@ OLLAMA_TOOLS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "search_exercises",
-            "description": "Recherche d'exercices de rééducation par pathologie ou zone.",
+            "description": "Recherche d'exercices (bundle local NHS/MedlinePlus + HAS, NHS, MedlinePlus en cache).",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -40,7 +33,7 @@ OLLAMA_TOOLS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "search_sources",
-            "description": "Recherche de sources médicales fiables (HAS, Ameli, Vidal).",
+            "description": "Sources fiables: HAS, Santé publique France, NHS, MedlinePlus (API), CSP, VIDAL.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -100,48 +93,50 @@ class MCPClient:
         self.timeout_seconds = timeout_seconds
 
     async def is_available(self) -> bool:
-        """Best-effort check — real MCP server will expose /mcp (Member 3)."""
+        """Check that the MCP HTTP endpoint responds and exposes tools."""
         try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
-                response = await client.get(f"{self.base_url}/health")
-                return response.status_code == 200
-        except httpx.HTTPError:
+            from fastmcp import Client
+
+            async with Client(f"{self.base_url}/mcp") as client:
+                await client.list_tools()
+            return True
+        except Exception:
             return False
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        """Call one MCP tool. Falls back to a stub if the server is not up yet."""
+        """Call one MCP tool via the FastMCP HTTP client."""
         started = time.perf_counter()
-
-        # TODO (Member 3): replace with fastmcp.Client(f"{self.base_url}/mcp")
         try:
-            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                response = await client.post(
-                    f"{self.base_url}/tools/{name}",
-                    json=arguments,
-                )
-                response.raise_for_status()
-                payload = response.json()
-                duration_ms = int((time.perf_counter() - started) * 1000)
-                return {
-                    "tool": name,
-                    "arguments": arguments,
-                    "result": payload,
-                    "status": "success",
-                    "duration_ms": duration_ms,
-                }
-        except httpx.HTTPError as exc:
+            from fastmcp import Client
+
+            async with Client(f"{self.base_url}/mcp") as client:
+                result = await client.call_tool(name, arguments)
+
+            if result.is_error:
+                raise MCPError(f"MCP tool {name} failed")
+
+            payload = result.structured_content or {}
+            if not payload and result.content:
+                texts = [
+                    getattr(block, "text", str(block))
+                    for block in result.content
+                ]
+                payload = {"text": "\n".join(texts)}
+
             duration_ms = int((time.perf_counter() - started) * 1000)
             return {
                 "tool": name,
                 "arguments": arguments,
-                "result": {
-                    "stub": True,
-                    "message": (
-                        "Serveur MCP non disponible pour l'instant. "
-                        "Member 3 doit démarrer le serveur FastMCP."
-                    ),
-                    "error": str(exc),
-                },
+                "result": payload,
+                "status": "success",
+                "duration_ms": duration_ms,
+            }
+        except Exception as exc:
+            duration_ms = int((time.perf_counter() - started) * 1000)
+            return {
+                "tool": name,
+                "arguments": arguments,
+                "result": {"error": str(exc)},
                 "status": "error",
                 "duration_ms": duration_ms,
             }
