@@ -66,7 +66,7 @@ docker compose up --build
 | Frontend   | http://localhost:3000        |
 | API        | http://localhost:8000/docs   |
 | MCP        | http://localhost:8001/mcp    |
-| PostgreSQL | `postgres` / `rehabbot` @ 5432 |
+| PostgreSQL | `postgres` / `rehabbot` @ **5435** (Compose) |
 
 ### Option B — Développement local
 

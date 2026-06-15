@@ -9,19 +9,21 @@
 #   docker compose up --build
 #   open http://localhost:3000
 
+# Note: if you already run a standalone Postgres as "rehabbot-postgres" on port
+# 5434, Compose uses its own DB on host port 5435 (no container_name clash).
+
 name: rehabbot
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: rehabbot-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: rehabbot
       POSTGRES_DB: rehabbot
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - rehabbot_pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -33,7 +35,6 @@ services:
   mcp-server:
     build:
       context: ./mcp-server
-    container_name: rehabbot-mcp
     restart: unless-stopped
     ports:
       - "8001:8001"
@@ -47,7 +48,6 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: rehabbot-backend
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -77,7 +77,6 @@ services:
       args:
         NUXT_PUBLIC_API_BASE: http://localhost:8000
         NUXT_PUBLIC_WS_BASE: ws://localhost:8000
-    container_name: rehabbot-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"

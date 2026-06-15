@@ -4,10 +4,10 @@ $ErrorActionPreference = "Continue"
 function Test-Http($Url, $Label) {
     try {
         $r = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 5
-        Write-Host "[OK] $Label ($($r.StatusCode))" -ForegroundColor Green
+        Write-Host ('[OK] ' + $Label + ' (' + $r.StatusCode + ')') -ForegroundColor Green
     }
     catch {
-        Write-Host "[FAIL] $Label — $_" -ForegroundColor Red
+        Write-Host ('[FAIL] ' + $Label + ' — ' + $_) -ForegroundColor Red
     }
 }
 
@@ -16,10 +16,10 @@ function Test-Tcp($HostName, $Port, $Label) {
         $tcp = New-Object System.Net.Sockets.TcpClient
         $tcp.Connect($HostName, $Port)
         $tcp.Close()
-        Write-Host "[OK] $Label (port $Port open)" -ForegroundColor Green
+        Write-Host ('[OK] ' + $Label + ' (port ' + $Port + ' open)') -ForegroundColor Green
     }
     catch {
-        Write-Host "[FAIL] $Label (port $Port)" -ForegroundColor Red
+        Write-Host ('[FAIL] ' + $Label + ' (port ' + $Port + ')') -ForegroundColor Red
     }
 }
 
