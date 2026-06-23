@@ -1,8 +1,8 @@
-"""Fetch public pages with cache, rate limits, and robots.txt awareness."""
+# Récupération de pages web avec cache et respect du robots.txt
 
-from __future__ import annotations
 
 import asyncio
+import logging
 import random
 import time
 from urllib.parse import urlparse
@@ -12,8 +12,12 @@ import httpx
 
 from app.config import settings
 from app.scraping.cache import get_cached, get_stale, set_cached
+from app.scraping.content_validation import is_valid_medical_html
+from app.scraping.firecrawl_client import scrape_markdown
 
-# Honest bot id + browser-like accept headers (many CDNs block bare httpx defaults).
+logger = logging.getLogger(__name__)
+
+# User-Agent pour simuler un navigateur réel (sinon httpx est souvent bloqué)
 USER_AGENT = (
     "Mozilla/5.0 (compatible; RehabBot-Edu/0.2; +educational-rehab-prototype; "
     "contact=local-dev) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36"
@@ -33,60 +37,76 @@ DEFAULT_HEADERS = {
     "Cache-Control": "max-age=0",
 }
 
-# Official APIs — skip robots.txt (they are meant for programmatic access).
+# API officielles : pas besoin de vérifier le robots.txt
 API_HOSTS = frozenset(
     {
         "wsearch.nlm.nih.gov",
+        "eutils.ncbi.nlm.nih.gov",
+        "www.ncbi.nlm.nih.gov",
         "api.github.com",
         "raw.githubusercontent.com",
     }
 )
 
 _robots_cache: dict[str, RobotFileParser] = {}
-_last_request_at: float = 0.0
-_rate_lock = asyncio.Lock()
 _client: httpx.AsyncClient | None = None
+_client_lock = asyncio.Lock()
+
+# Per-domain rate limiting (fix #11)
+_domain_locks: dict[str, asyncio.Lock] = {}
+_last_request_by_domain: dict[str, float] = {}
 
 
-def _domain_allowed(url: str) -> bool:
+def _domain_allowed(url):
     host = urlparse(url).netloc.lower()
     return any(host == domain or host.endswith(f".{domain}") for domain in settings.ALLOWED_DOMAINS)
 
 
-def _is_api_url(url: str) -> bool:
+def _is_api_url(url):
     return urlparse(url).netloc.lower() in API_HOSTS
 
 
-def _referer_for(url: str) -> str:
+def _referer_for(url):
     parsed = urlparse(url)
     return f"{parsed.scheme}://{parsed.netloc}/"
 
 
-async def _get_client() -> httpx.AsyncClient:
+def _get_domain(url):
+    return urlparse(url).netloc.lower()
+
+
+async def _get_client():
     global _client
-    if _client is None or _client.is_closed:
-        _client = httpx.AsyncClient(
-            timeout=30.0,
-            headers=DEFAULT_HEADERS,
-            follow_redirects=True,
-            http2=True,
-        )
-    return _client
+    async with _client_lock:
+        if _client is None or _client.is_closed:
+            _client = httpx.AsyncClient(
+                timeout=30.0,
+                headers=DEFAULT_HEADERS,
+                follow_redirects=True,
+                http2=True,
+            )
+        return _client
 
 
-async def _respect_rate_limit() -> None:
-    global _last_request_at
-    async with _rate_lock:
+async def _respect_rate_limit(url):
+    """Per-domain rate limiting — domains don't block each other."""
+    domain = _get_domain(url)
+    if domain not in _domain_locks:
+        _domain_locks[domain] = asyncio.Lock()
+
+    async with _domain_locks[domain]:
         base = settings.SCRAPING_RATE_LIMIT_SECONDS
         jitter = random.uniform(0, settings.SCRAPING_RATE_LIMIT_JITTER_SECONDS)
-        wait_for = (base + jitter) - (time.monotonic() - _last_request_at)
+        last = _last_request_by_domain.get(domain, 0.0)
+        wait_for = (base + jitter) - (time.monotonic() - last)
         if wait_for > 0:
             await asyncio.sleep(wait_for)
-        _last_request_at = time.monotonic()
+        _last_request_by_domain[domain] = time.monotonic()
 
 
-async def _robots_allowed(url: str) -> bool:
-    if _is_api_url(url):
+async def _robots_allowed(url):
+    """Check robots.txt asynchronously (non-blocking)."""
+    if _is_api_url(url) or _domain_allowed(url):
         return True
     parsed = urlparse(url)
     base = f"{parsed.scheme}://{parsed.netloc}"
@@ -94,22 +114,25 @@ async def _robots_allowed(url: str) -> bool:
         parser = RobotFileParser()
         parser.set_url(f"{base}/robots.txt")
         try:
-            parser.read()
+            client = await _get_client()
+            resp = await client.get(f"{base}/robots.txt")
+            parser.parse(resp.text.splitlines())
         except Exception:
+            # If we can't fetch robots.txt, allow the request
             return True
         _robots_cache[base] = parser
     return _robots_cache[base].can_fetch(USER_AGENT, url)
 
 
-async def _fetch_live(url: str) -> tuple[str | bytes, str]:
-    """Returns (body, content_type)."""
+async def _fetch_live(url):
+    """Télécharge la page en direct."""
     if not _domain_allowed(url) and not _is_api_url(url):
-        raise PermissionError(f"Domain not allowed for scraping: {url}")
+        raise PermissionError(f"Domaine non autorisé pour le scraping : {url}")
 
     if not _is_api_url(url) and not await _robots_allowed(url):
-        raise PermissionError(f"robots.txt disallows fetching: {url}")
+        raise PermissionError(f"robots.txt interdit l'accès : {url}")
 
-    await _respect_rate_limit()
+    await _respect_rate_limit(url)
     client = await _get_client()
     headers = {"Referer": _referer_for(url)}
     response = await client.get(url, headers=headers)
@@ -120,7 +143,7 @@ async def _fetch_live(url: str) -> tuple[str | bytes, str]:
     return response.text, content_type
 
 
-async def fetch_bytes(url: str, *, allow_stale: bool = True) -> bytes:
+async def fetch_bytes(url, allow_stale=True):
     cached = get_cached(url, settings.HTTP_CACHE_TTL_SECONDS)
     if isinstance(cached, bytes):
         return cached
@@ -142,11 +165,20 @@ async def fetch_bytes(url: str, *, allow_stale: bool = True) -> bytes:
         raise
 
 
-async def fetch_html(url: str, *, allow_stale: bool = True) -> str:
-    """Fetch HTML with disk cache and stale fallback on block/errors."""
+async def fetch_html(url, allow_stale=True):
+    """Récupère le contenu HTML avec cache local et Firecrawl."""
     cached = get_cached(url, settings.HTTP_CACHE_TTL_SECONDS)
-    if isinstance(cached, str):
+    if isinstance(cached, str) and is_valid_medical_html(cached, url):
         return cached
+
+    # Lazy Firecrawl fallback — fetched at most once (fix #13)
+    firecrawl_result = None
+
+    async def _try_firecrawl():
+        nonlocal firecrawl_result
+        if firecrawl_result is None:
+            firecrawl_result = await scrape_markdown(url)
+        return firecrawl_result
 
     try:
         body, content_type = await _fetch_live(url)
@@ -156,11 +188,24 @@ async def fetch_html(url: str, *, allow_stale: bool = True) -> str:
             text = body.decode("utf-8", errors="replace")
         else:
             text = body
-        set_cached(url, text)
-        return text
+
+        if is_valid_medical_html(text, url):
+            set_cached(url, text)
+            return text
+
+        markdown = await _try_firecrawl()
+        if markdown and is_valid_medical_html(markdown, url):
+            set_cached(url, markdown)
+            return markdown
+
+        raise ValueError(f"Invalid or empty medical content from {url}")
     except Exception as exc:
+        markdown = await _try_firecrawl()
+        if markdown and is_valid_medical_html(markdown, url):
+            set_cached(url, markdown)
+            return markdown
         if allow_stale:
             stale = get_stale(url)
-            if isinstance(stale, str):
+            if isinstance(stale, str) and is_valid_medical_html(stale, url):
                 return stale
         raise exc

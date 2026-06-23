@@ -4,39 +4,35 @@ import type {
   ChatMessage,
   WsServerEvent,
 } from '~/types/chat'
+import { formatMessageHtml } from '~/utils/formatMessage'
 
 const props = defineProps<{
   sessionId: string
+  initialMessage?: string
 }>()
 
 const config = useRuntimeConfig()
 const { loadMessages } = useSession()
+
+const EXAMPLE_PROMPTS = [
+  'Exercices pour lombalgie',
+  'Rééducation épaule',
+  'Conseils genou arthrose',
+  'Sources HAS dos',
+]
 
 const wsUrl = `${config.public.wsBase}/ws/chat`
 
 const messages = ref<ChatMessage[]>([])
 const draft = ref('')
 const status = ref<AgentStatus>('idle')
-const errorDetail = ref<string | null>(null)
+const toastMessage = ref<string | null>(null)
+const isLoadingHistory = ref(true)
+const userScrolledUp = ref(false)
+const copiedIndex = ref<number | null>(null)
 
 let socket: WebSocket | null = null
-
-const statusLabel = computed(() => {
-  switch (status.value) {
-    case 'connecting':
-      return 'Connexion…'
-    case 'thinking':
-      return 'Réflexion…'
-    case 'searching':
-      return 'Recherche de sources fiables…'
-    case 'answer':
-      return 'Rédaction de la réponse…'
-    case 'error':
-      return 'Erreur'
-    default:
-      return ''
-  }
-})
+let toastTimer: ReturnType<typeof setTimeout> | null = null
 
 const isBusy = computed(
   () =>
@@ -45,6 +41,18 @@ const isBusy = computed(
     status.value === 'searching' ||
     status.value === 'answer',
 )
+
+function renderMessageHtml(content: string): string {
+  return formatMessageHtml(content)
+}
+
+function showToast(message: string) {
+  toastMessage.value = message
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => {
+    toastMessage.value = null
+  }, 4000)
+}
 
 function toDisplayMessages(rows: Awaited<ReturnType<typeof loadMessages>>): ChatMessage[] {
   return rows
@@ -58,8 +66,14 @@ function toDisplayMessages(rows: Awaited<ReturnType<typeof loadMessages>>): Chat
 }
 
 async function refreshHistory() {
-  const rows = await loadMessages(props.sessionId)
-  messages.value = toDisplayMessages(rows)
+  isLoadingHistory.value = true
+  try {
+    const rows = await loadMessages(props.sessionId)
+    messages.value = toDisplayMessages(rows)
+  } finally {
+    isLoadingHistory.value = false
+    nextTick(() => scrollToBottom(true))
+  }
 }
 
 function connectSocket() {
@@ -70,7 +84,6 @@ function connectSocket() {
 
   socket.onopen = () => {
     status.value = 'idle'
-    errorDetail.value = null
   }
 
   socket.onmessage = (event) => {
@@ -83,7 +96,7 @@ function connectSocket() {
 
     if (payload.type === 'error') {
       status.value = 'error'
-      errorDetail.value = payload.detail
+      showToast(payload.detail)
       return
     }
 
@@ -93,13 +106,13 @@ function connectSocket() {
         content: payload.reply,
       })
       status.value = 'completed'
-      nextTick(scrollToBottom)
+      nextTick(() => scrollToBottom())
     }
   }
 
   socket.onerror = () => {
     status.value = 'error'
-    errorDetail.value = 'Connexion WebSocket interrompue.'
+    showToast('Connexion WebSocket interrompue.')
   }
 
   socket.onclose = () => {
@@ -109,17 +122,21 @@ function connectSocket() {
   }
 }
 
-function scrollToBottom() {
+function onMessagesScroll(event: Event) {
+  const el = event.target as HTMLElement
+  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+  userScrolledUp.value = distanceFromBottom > 80
+}
+
+function scrollToBottom(force = false) {
+  if (!force && userScrolledUp.value) return
   const el = document.getElementById('chat-scroll')
   if (el) {
     el.scrollTop = el.scrollHeight
   }
 }
 
-async function sendMessage() {
-  const text = draft.value.trim()
-  if (!text || isBusy.value) return
-
+async function ensureSocketOpen() {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
     connectSocket()
     await new Promise<void>((resolve) => {
@@ -130,19 +147,59 @@ async function sendMessage() {
       check()
     })
   }
+}
 
-  messages.value.push({ role: 'user', content: text })
+async function sendContent(text: string, showUserBubble = true) {
+  const trimmed = text.trim()
+  if (!trimmed || isBusy.value) return
+
+  await ensureSocketOpen()
+
+  if (showUserBubble) {
+    messages.value.push({ role: 'user', content: trimmed })
+  }
   draft.value = ''
   status.value = 'thinking'
-  errorDetail.value = null
-  nextTick(scrollToBottom)
+  userScrolledUp.value = false
+  nextTick(() => scrollToBottom(true))
 
   socket?.send(
     JSON.stringify({
       session_id: props.sessionId,
-      content: text,
+      content: trimmed,
     }),
   )
+}
+
+async function sendMessage() {
+  await sendContent(draft.value)
+}
+
+function usePrompt(prompt: string) {
+  draft.value = prompt
+  sendMessage()
+}
+
+function regenerate(assistantIndex: number) {
+  for (let i = assistantIndex - 1; i >= 0; i--) {
+    const msg = messages.value[i]
+    if (msg?.role === 'user') {
+      sendContent(msg.content, false)
+      return
+    }
+  }
+}
+
+async function copyMessage(index: number, text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    copiedIndex.value = index
+    setTimeout(() => {
+      if (copiedIndex.value === index) copiedIndex.value = null
+    }, 2000)
+  } catch {
+    showToast('Impossible de copier le texte.')
+  }
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -155,58 +212,146 @@ function onKeydown(event: KeyboardEvent) {
 onMounted(async () => {
   await refreshHistory()
   connectSocket()
-  nextTick(scrollToBottom)
+  if (props.initialMessage?.trim()) {
+    await nextTick()
+    await sendContent(props.initialMessage.trim())
+  }
 })
 
 onBeforeUnmount(() => {
   socket?.close()
+  if (toastTimer) clearTimeout(toastTimer)
 })
 </script>
 
 <template>
   <div class="chatbot">
-    <div id="chat-scroll" class="chatbot__messages" aria-live="polite">
-      <p v-if="messages.length === 0" class="chatbot__empty">
-        Posez une question sur la rééducation (ex. lombalgie, genou, épaule).
-        RehabBot consulte des sources publiques fiables via le serveur MCP.
-      </p>
+    <div
+      id="chat-scroll"
+      class="chatbot__messages"
+      aria-live="polite"
+      @scroll="onMessagesScroll"
+    >
+      <!-- Loading skeleton -->
+      <template v-if="isLoadingHistory">
+        <div v-for="n in 3" :key="`skel-${n}`" class="chatbot__skeleton" :class="{ 'chatbot__skeleton--right': n === 2 }" />
+      </template>
 
-      <article
-        v-for="(msg, index) in messages"
-        :key="msg.id ?? `local-${index}`"
-        class="chatbot__bubble"
-        :class="`chatbot__bubble--${msg.role}`"
-      >
-        <span class="chatbot__role">
-          {{ msg.role === 'user' ? 'Vous' : 'RehabBot' }}
-        </span>
-        <p class="chatbot__text">{{ msg.content }}</p>
-      </article>
+      <template v-else>
+        <p v-if="messages.length === 0" class="chatbot__empty">
+          Posez une question sur la rééducation. RehabBot consulte HAS, NHS,
+          MedlinePlus et d'autres sources via le serveur MCP.
+        </p>
 
-      <p v-if="isBusy && statusLabel" class="chatbot__status">
-        <span class="chatbot__spinner" aria-hidden="true" />
-        {{ statusLabel }}
-      </p>
+        <article
+          v-for="(msg, index) in messages"
+          :key="msg.id ?? `local-${index}`"
+          class="chatbot__bubble"
+          :class="`chatbot__bubble--${msg.role}`"
+          :aria-label="msg.role === 'user' ? 'Message utilisateur' : 'Message assistant'"
+        >
+          <span class="chatbot__role">
+            {{ msg.role === 'user' ? 'Vous' : 'RehabBot' }}
+          </span>
+          <div class="chatbot__text" v-html="renderMessageHtml(msg.content)" />
 
-      <p v-if="errorDetail" class="chatbot__error" role="alert">
-        {{ errorDetail }}
-      </p>
+          <div v-if="msg.role === 'assistant'" class="chatbot__actions">
+            <button
+              type="button"
+              class="chatbot__action-btn"
+              title="Copier"
+              :aria-label="copiedIndex === index ? 'Copié' : 'Copier la réponse'"
+              @click="copyMessage(index, msg.content)"
+            >
+              <span v-if="copiedIndex === index" class="chatbot__copied">Copié !</span>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.75" />
+                <path d="M5 15V5a2 2 0 0 1 2-2h10" stroke="currentColor" stroke-width="1.75" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="chatbot__action-btn"
+              title="Régénérer"
+              aria-label="Régénérer la réponse"
+              :disabled="isBusy"
+              @click="regenerate(index)"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 12a8 8 0 0 1 13.66-5.66M20 12a8 8 0 0 1-13.66 5.66" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+                <path d="M20 4v4h-4M4 20v-4h4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+        </article>
+
+        <!-- Typing indicator (3 dots) -->
+        <article
+          v-if="isBusy"
+          class="chatbot__bubble chatbot__bubble--assistant chatbot__bubble--typing"
+          aria-label="RehabBot rédige une réponse"
+        >
+          <span class="chatbot__role">RehabBot</span>
+          <div class="chatbot__dots" aria-hidden="true">
+            <span /><span /><span />
+          </div>
+          <span class="sr-only">
+            {{ status === 'searching' ? 'Recherche de sources…' : 'Réflexion en cours…' }}
+          </span>
+        </article>
+      </template>
     </div>
 
-    <form class="chatbot__form" @submit.prevent="sendMessage">
-      <textarea
-        v-model="draft"
-        class="chatbot__input"
-        rows="2"
-        placeholder="Décrivez votre question ou votre zone douloureuse…"
-        :disabled="isBusy"
-        aria-label="Votre message"
-        @keydown="onKeydown"
-      />
-      <button class="chatbot__send" type="submit" :disabled="isBusy || !draft.trim()">
-        Envoyer
-      </button>
-    </form>
+    <!-- Fixed input card (ChatTide §6) -->
+    <div class="chatbot__input-area">
+      <div class="chatbot__chips" role="list" aria-label="Suggestions">
+        <button
+          v-for="prompt in EXAMPLE_PROMPTS"
+          :key="prompt"
+          type="button"
+          class="chatbot__chip"
+          role="listitem"
+          :disabled="isBusy"
+          @click="usePrompt(prompt)"
+        >
+          {{ prompt }}
+        </button>
+      </div>
+
+      <div class="chatbot__card">
+        <textarea
+          v-model="draft"
+          class="chatbot__input"
+          rows="2"
+          placeholder="🧩 Posez votre question de rééducation…"
+          :disabled="isBusy"
+          aria-label="Votre message"
+          @keydown="onKeydown"
+        />
+        <div class="chatbot__card-actions">
+          <button
+            class="chatbot__send"
+            type="button"
+            :class="{ 'chatbot__send--active': draft.trim() && !isBusy }"
+            :disabled="isBusy || !draft.trim()"
+            aria-label="Envoyer"
+            @click="sendMessage"
+          >
+            <span v-if="isBusy" class="chatbot__send-spinner" aria-hidden="true" />
+            <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <Transition name="toast">
+      <div v-if="toastMessage" class="chatbot__toast" role="alert">
+        {{ toastMessage }}
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -214,136 +359,361 @@ onBeforeUnmount(() => {
 .chatbot {
   display: flex;
   flex-direction: column;
-  height: min(70vh, 640px);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  position: relative;
 }
 
 .chatbot__messages {
   flex: 1;
   overflow-y: auto;
-  padding: 1.25rem;
+  padding: 1rem 0 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 12px;
+  scroll-behavior: smooth;
 }
 
 .chatbot__empty {
-  margin: 0;
-  color: var(--color-muted);
+  margin: auto;
+  max-width: 28rem;
+  text-align: center;
+  color: var(--color-text-muted);
   font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.chatbot__skeleton {
+  height: 72px;
+  max-width: 70%;
+  border-radius: var(--radius-card);
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+.chatbot__skeleton--right {
+  align-self: flex-end;
+  max-width: 45%;
 }
 
 .chatbot__bubble {
   max-width: 85%;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--radius-card);
+  animation: message-in var(--transition-fast) ease-out;
+  transition: transform var(--transition-fast);
+}
+
+.chatbot__bubble:hover {
+  transform: scale(1.01);
 }
 
 .chatbot__bubble--user {
   align-self: flex-end;
   background: var(--color-user-bubble);
+  color: #fff;
+  box-shadow: var(--shadow-soft);
 }
 
 .chatbot__bubble--assistant {
   align-self: flex-start;
   background: var(--color-bot-bubble);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: var(--shadow-card);
+}
+
+.chatbot__bubble--typing {
+  padding-bottom: 1rem;
 }
 
 .chatbot__role {
   display: block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-muted);
-  margin-bottom: 0.25rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 400;
+  margin-bottom: 0.35rem;
+}
+
+.chatbot__bubble--user .chatbot__role {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.chatbot__bubble--assistant .chatbot__role {
+  color: var(--color-text-muted);
 }
 
 .chatbot__text {
   margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.chatbot__status {
+.chatbot__text :deep(strong) {
+  font-weight: 700;
+}
+
+.chatbot__text :deep(.msg-h3) {
+  margin: 0.85rem 0 0.4rem;
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--color-text);
+}
+
+.chatbot__text :deep(.msg-h3:first-child) {
+  margin-top: 0;
+}
+
+.chatbot__bubble--user .chatbot__text :deep(.msg-h3) {
+  color: #fff;
+}
+
+.chatbot__bubble--user .chatbot__text :deep(strong) {
+  color: #fff;
+}
+
+.chatbot__text :deep(.msg-link) {
+  color: #0284c7;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.chatbot__text :deep(.msg-link:hover) {
+  opacity: 0.8;
+}
+
+.chatbot__bubble--user .chatbot__text :deep(.msg-link) {
+  color: #93c5fd;
+}
+
+.chatbot__actions {
   display: flex;
+  gap: 0.25rem;
+  margin-top: 0.65rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.chatbot__action-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  margin: 0;
-  color: var(--color-primary);
-  font-size: 0.9rem;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.4rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm, 8px);
+  color: var(--color-text-muted);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.chatbot__spinner {
-  width: 1rem;
-  height: 1rem;
-  border: 2px solid var(--color-border);
-  border-top-color: var(--color-primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.chatbot__action-btn:hover:not(:disabled) {
+  background: var(--color-bg);
+  color: var(--color-text);
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+.chatbot__action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.chatbot__error {
-  margin: 0;
-  padding: 0.75rem;
-  background: #fdecea;
-  border: 1px solid #f5c2c0;
-  border-radius: var(--radius);
-  color: #8a1f17;
-  font-size: 0.9rem;
+.chatbot__copied {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #16a34a;
 }
 
-.chatbot__form {
+.chatbot__dots {
   display: flex;
-  gap: 0.75rem;
-  padding: 1rem;
-  border-top: 1px solid var(--color-border);
-  background: #fafcfc;
+  gap: 5px;
+  padding: 0.25rem 0;
+}
+
+.chatbot__dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-sky-accent);
+  animation: dot-pulse 1.2s infinite ease-in-out;
+}
+
+.chatbot__dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.chatbot__dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.chatbot__input-area {
+  flex-shrink: 0;
+  padding: 0.5rem 0 1rem;
+}
+
+.chatbot__chips {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.65rem;
+  scrollbar-width: none;
+}
+
+.chatbot__chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chatbot__chip {
+  flex-shrink: 0;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(4px);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.chatbot__chip:hover:not(:disabled) {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.chatbot__chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chatbot__card {
+  padding: 1rem 1rem 0.75rem;
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .chatbot__input {
-  flex: 1;
-  resize: vertical;
+  width: 100%;
   min-height: 2.75rem;
-  padding: 0.65rem 0.85rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  max-height: 140px;
+  padding: 0;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-body);
   font-size: 1rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: transparent;
+  border: none;
+  resize: none;
+}
+
+.chatbot__input::placeholder {
+  color: var(--color-text-placeholder);
 }
 
 .chatbot__input:focus {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 1px;
+  outline: none;
+  box-shadow: none;
+}
+
+.chatbot__input:disabled {
+  opacity: 0.6;
+}
+
+.chatbot__card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.chatbot__attach {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-round);
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .chatbot__send {
-  align-self: flex-end;
-  padding: 0.65rem 1.25rem;
-  background: var(--color-primary);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
   color: #fff;
+  background: var(--color-send-idle);
   border: none;
-  border-radius: var(--radius);
-  font-weight: 600;
-  cursor: pointer;
+  border-radius: var(--radius-round);
+  transition: background var(--transition-fast), transform var(--transition-fast);
 }
 
-.chatbot__send:hover:not(:disabled) {
-  background: var(--color-primary-dark);
+.chatbot__send--active {
+  background: var(--color-send-active);
+}
+
+.chatbot__send--active:hover {
+  transform: scale(1.05);
 }
 
 .chatbot__send:disabled {
-  opacity: 0.55;
   cursor: not-allowed;
+}
+
+.chatbot__send-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.chatbot__toast {
+  position: fixed;
+  right: 1rem;
+  bottom: 7rem;
+  z-index: 200;
+  max-width: 320px;
+  padding: 0.85rem 1.1rem;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-left: 3px solid var(--color-error);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  animation: toast-in var(--transition-fast) ease-out;
+}
+
+.toast-enter-active,
+.toast-leave-active {
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+@media (max-width: 767px) {
+  .chatbot__toast {
+    left: 1rem;
+    right: 1rem;
+    max-width: none;
+  }
 }
 </style>

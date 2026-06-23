@@ -1,19 +1,9 @@
-"""Agent loop — the orchestration brain of RehabBot (Member 2).
+# Boucle principale de l'agent IA (RehabBot)
+# Gère l'historique en base de données, l'envoi à Ollama et l'appel des outils MCP.
 
-This is the core flow from the PDF spec:
-
-  1. Load conversation history from PostgreSQL
-  2. Build context: system prompt + history + new user message
-  3. Send context to Ollama (Member 4)
-  4. If the model emits tool_calls → call MCP server (Member 3)
-  5. Re-inject tool results into context and ask Ollama again
-  6. Save the final assistant reply to the database
-
-Status events ("thinking", "searching", "answer") are emitted via an optional
-callback so the WebSocket route (next step) can stream them to the frontend.
-"""
 
 import json
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -33,37 +23,27 @@ from app.prompts.system import SYSTEM_PROMPT
 from app.services.mcp_client import MCPClient, OLLAMA_TOOLS
 from app.services.ollama_client import OllamaClient, OllamaError
 
-# Status strings the frontend will display (Member 1).
+logger = logging.getLogger(__name__)
+
+# États de statut pour le frontend
 STATUS_THINKING = "thinking"
 STATUS_SEARCHING = "searching"
 STATUS_ANSWER = "answer"
 
-StatusCallback = Callable[[str], Awaitable[None]]
-
 
 class AgentLoopError(Exception):
-    """Raised when the agent loop cannot complete (e.g. Ollama down)."""
+    """Exception levée en cas d'erreur de la boucle d'agent."""
 
 
 class AgentLoop:
-    def __init__(
-        self,
-        db: AsyncSession,
-        ollama: OllamaClient | None = None,
-        mcp: MCPClient | None = None,
-    ) -> None:
+    def __init__(self, db, ollama=None, mcp=None):
         self.db = db
         self.ollama = ollama or OllamaClient()
         self.mcp = mcp or MCPClient()
 
-    async def run(
-        self,
-        session_id: str,
-        user_content: str,
-        *,
-        on_status: StatusCallback | None = None,
-    ) -> str:
-        """Run the full agent loop and return the final assistant text."""
+    async def run(self, session_id, user_content, on_status=None):
+        """Lance la boucle d'agent pour traiter le message de l'utilisateur."""
+        logger.info("Agent loop started for session %s", session_id)
         await self._emit(STATUS_THINKING, on_status)
 
         if not await self.ollama.is_available():
@@ -72,18 +52,19 @@ class AgentLoop:
                 f"`ollama pull {settings.OLLAMA_MODEL}`."
             )
 
-        # Persist the user message first (same as POST /messages).
+        # Sauvegarde du message utilisateur (commit reporté à la fin)
         user_message = Message(
             session_id=session_id,
             role=ROLE_USER,
             content=user_content,
         )
         self.db.add(user_message)
-        await self.db.commit()
 
-        # Build the message list Ollama expects.
+        # Construction du contexte pour Ollama
         history = await self._load_history(session_id)
         ollama_messages = self._build_context(history)
+        # Ajouter le nouveau message utilisateur au contexte Ollama
+        ollama_messages.append({"role": ROLE_USER, "content": user_content})
 
         final_content = ""
         tool_rounds = 0
@@ -97,6 +78,7 @@ class AgentLoop:
                     stream=False,
                 )
             except OllamaError as exc:
+                logger.error("Ollama chat failed for session %s: %s", session_id, exc)
                 raise AgentLoopError(str(exc)) from exc
 
             assistant_message = response.get("message", {})
@@ -106,7 +88,7 @@ class AgentLoop:
             if not tool_calls:
                 break
 
-            # Model wants to use tools — hand off to Member 3 (MCP).
+            # Si le modèle veut appeler un outil MCP
             await self._emit(STATUS_SEARCHING, on_status)
             tool_rounds += 1
 
@@ -124,21 +106,29 @@ class AgentLoop:
                 raw_args = function.get("arguments", {})
                 arguments = self._parse_tool_arguments(raw_args)
 
+                logger.info("Calling MCP tool %s(%s)", tool_name, arguments)
                 payload = await self.mcp.call_tool(tool_name, arguments)
-                await self._log_tool_call(session_id, payload)
+                logger.info(
+                    "Tool %s → %s in %dms",
+                    tool_name,
+                    payload.get("status", "unknown"),
+                    payload.get("duration_ms", 0),
+                )
+                # Log tool call (commit reporté à la fin)
+                self._add_tool_log(session_id, payload)
 
-                # Ollama expects tool_name on tool-role messages.
+                # Format attendu par Ollama : on intègre le nom de l'outil dans le contenu
+                result_content = self.mcp.tool_result_content(payload)
                 ollama_messages.append(
                     {
                         "role": ROLE_TOOL,
-                        "tool_name": tool_name,
-                        "content": self.mcp.tool_result_content(payload),
+                        "content": f"[Tool: {tool_name}]\n{result_content}",
                     }
                 )
 
             await self._emit(STATUS_THINKING, on_status)
 
-        # If the model kept calling tools without answering, force a final reply.
+        # Si on dépasse le nombre de rounds d'outils max sans réponse
         if not final_content:
             await self._emit(STATUS_THINKING, on_status)
             try:
@@ -149,6 +139,7 @@ class AgentLoop:
                 )
                 final_content = self._extract_content(response.get("message", {}))
             except OllamaError as exc:
+                logger.error("Ollama final chat failed for session %s: %s", session_id, exc)
                 raise AgentLoopError(str(exc)) from exc
 
         if not final_content:
@@ -165,11 +156,18 @@ class AgentLoop:
             content=final_content,
         )
         self.db.add(assistant_row)
+
+        # Un seul commit pour tout : message user + tool logs + réponse assistant
         await self.db.commit()
+        logger.info(
+            "Agent loop completed for session %s, reply length=%d",
+            session_id,
+            len(final_content),
+        )
 
         return final_content
 
-    async def _load_history(self, session_id: str) -> list[Message]:
+    async def _load_history(self, session_id):
         result = await self.db.exec(
             select(Message)
             .where(Message.session_id == session_id)
@@ -179,9 +177,8 @@ class AgentLoop:
         max_messages = settings.AGENT_MAX_HISTORY_MESSAGES
         return rows[-max_messages:] if len(rows) > max_messages else rows
 
-    def _build_context(self, history: list[Message]) -> list[dict[str, Any]]:
-        """system prompt + recent history (roles user/assistant/tool only in DB)."""
-        messages: list[dict[str, Any]] = [
+    def _build_context(self, history):
+        messages = [
             {"role": ROLE_SYSTEM, "content": SYSTEM_PROMPT},
         ]
         for row in history:
@@ -190,7 +187,8 @@ class AgentLoop:
             messages.append({"role": row.role, "content": row.content})
         return messages
 
-    async def _log_tool_call(self, session_id: str, payload: dict[str, Any]) -> None:
+    def _add_tool_log(self, session_id, payload):
+        """Add a tool log record (not committed yet — batched with final commit)."""
         log = ToolLog(
             session_id=session_id,
             tool_name=payload.get("tool", "unknown"),
@@ -200,25 +198,27 @@ class AgentLoop:
             duration_ms=payload.get("duration_ms"),
         )
         self.db.add(log)
-        await self.db.commit()
 
     @staticmethod
-    def _extract_content(message: dict[str, Any]) -> str:
+    def _extract_content(message):
         content = (message.get("content") or "").strip()
         if content:
             return content
-        # Some models put reasoning in `thinking` when think=true; ignore for output.
         return ""
 
     @staticmethod
-    def _parse_tool_arguments(raw_args: Any) -> dict[str, Any]:
+    def _parse_tool_arguments(raw_args):
         if isinstance(raw_args, dict):
             return raw_args
         if isinstance(raw_args, str) and raw_args.strip():
-            return json.loads(raw_args)
+            try:
+                return json.loads(raw_args)
+            except json.JSONDecodeError:
+                logger.warning("Malformed tool arguments from LLM: %s", raw_args[:200])
+                return {"raw": raw_args}
         return {}
 
     @staticmethod
-    async def _emit(status: str, callback: StatusCallback | None) -> None:
+    async def _emit(status, callback):
         if callback is not None:
             await callback(status)

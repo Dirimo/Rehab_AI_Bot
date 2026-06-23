@@ -42,8 +42,16 @@ services:
       MCP_HOST: 0.0.0.0
       MCP_PORT: 8001
       SCRAPING_RATE_LIMIT_SECONDS: "2"
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_TRANSLATION_MODEL: qwen3.5:9b-q4_K_M
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
+      FIRECRAWL_ENABLED: "true"
+      DYNAMIC_SEARCH_ENABLED: "true"
+      DYNAMIC_SEARCH_MIN_CATALOG_HITS: "2"
     volumes:
       - mcp_http_cache:/app/.cache
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   backend:
     build:

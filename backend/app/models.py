@@ -38,11 +38,9 @@ class Session(SQLModel, table=True):
 
     created_at: datetime = Field(default_factory=_now)
 
-    # When this session becomes invalid. Defaulted in code at creation time
-    # to created_at + SESSION_EXPIRATION_DAYS (see the sessions route later).
-    expires_at: datetime = Field(
-        default_factory=lambda: _now() + timedelta(days=21)
-    )
+    # When this session becomes invalid. Computed at creation time by the
+    # sessions router using settings.SESSION_EXPIRATION_DAYS.
+    expires_at: datetime | None = Field(default=None)
 
 
 class Message(SQLModel, table=True):

@@ -1,22 +1,22 @@
-"""MCP tool client (Member 2 → Member 3).
+# Client de connexion au serveur MCP (FastMCP)
 
-Calls the FastMCP HTTP server started by Member 3:
-  fastmcp.Client("http://localhost:8001/mcp").call_tool(name, arguments)
-"""
 
 import json
+import logging
 import time
 from typing import Any
 
 from app.config import settings
 
-# Tool schemas in Ollama's "tools" format (JSON Schema parameters).
-OLLAMA_TOOLS: list[dict[str, Any]] = [
+logger = logging.getLogger(__name__)
+
+# Configuration des outils au format attendu par Ollama
+OLLAMA_TOOLS = [
     {
         "type": "function",
         "function": {
             "name": "search_exercises",
-            "description": "Recherche d'exercices (bundle local NHS/MedlinePlus + HAS, NHS, MedlinePlus en cache).",
+            "description": "Recherche d'exercices de rééducation (Physiopedia EN→FR, Axomove FR, exercices locaux).",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -33,7 +33,7 @@ OLLAMA_TOOLS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "search_sources",
-            "description": "Sources fiables: HAS, Santé publique France, NHS, MedlinePlus (API), CSP, VIDAL.",
+            "description": "Sources fiables: HAS (recommandations FR), VIDAL (fiches pathologie FR), PMC (articles scientifiques EN→FR).",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -50,7 +50,7 @@ OLLAMA_TOOLS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "get_rehab_advice",
-            "description": "Conseils généraux de rééducation par zone anatomique.",
+            "description": "Conseils de rééducation par zone anatomique (Ameli.fr parcours patient, HAS/VIDAL recommandations).",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -84,27 +84,28 @@ OLLAMA_TOOLS: list[dict[str, Any]] = [
 
 
 class MCPError(Exception):
-    """Raised when an MCP tool call fails."""
+    """Exception levée en cas d'échec d'un appel d'outil MCP."""
 
 
 class MCPClient:
-    def __init__(self, base_url: str | None = None, timeout_seconds: float = 30.0) -> None:
+    def __init__(self, base_url=None, timeout_seconds=30.0):
         self.base_url = (base_url or settings.MCP_BASE_URL).rstrip("/")
         self.timeout_seconds = timeout_seconds
 
-    async def is_available(self) -> bool:
-        """Check that the MCP HTTP endpoint responds and exposes tools."""
+    async def is_available(self):
+        """Vérifie si le serveur MCP répond."""
         try:
             from fastmcp import Client
 
             async with Client(f"{self.base_url}/mcp") as client:
                 await client.list_tools()
             return True
-        except Exception:
+        except Exception as exc:
+            logger.warning("MCP server unreachable: %s", exc)
             return False
 
-    async def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        """Call one MCP tool via the FastMCP HTTP client."""
+    async def call_tool(self, name, arguments):
+        """Appelle un outil MCP via le client FastMCP."""
         started = time.perf_counter()
         try:
             from fastmcp import Client
@@ -133,6 +134,7 @@ class MCPClient:
             }
         except Exception as exc:
             duration_ms = int((time.perf_counter() - started) * 1000)
+            logger.warning("MCP tool %s failed after %dms: %s", name, duration_ms, exc)
             return {
                 "tool": name,
                 "arguments": arguments,
@@ -142,6 +144,6 @@ class MCPClient:
             }
 
     @staticmethod
-    def tool_result_content(payload: dict[str, Any]) -> str:
-        """Serialize tool output for the 'tool' role message sent back to Ollama."""
+    def tool_result_content(payload):
+        """Formate le résultat pour le renvoyer à Ollama."""
         return json.dumps(payload.get("result", payload), ensure_ascii=False)

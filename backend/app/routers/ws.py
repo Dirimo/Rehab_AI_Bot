@@ -15,6 +15,9 @@ Server sends (JSON events):
   {"type": "error", "detail": "..."}
 """
 
+import asyncio
+import logging
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -23,7 +26,12 @@ from app.models import Session as ChatSession
 from app.routers.messages import _is_expired
 from app.services.agent_loop import AgentLoop, AgentLoopError
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(tags=["websocket"])
+
+# 5 minutes sans message → déconnexion (évite les workers zombis)
+_WS_RECEIVE_TIMEOUT = 300
 
 
 @router.websocket("/ws/chat")
@@ -33,7 +41,15 @@ async def ws_chat(websocket: WebSocket) -> None:
 
     try:
         while True:
-            payload = await websocket.receive_json()
+            try:
+                payload = await asyncio.wait_for(
+                    websocket.receive_json(), timeout=_WS_RECEIVE_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                logger.info("WebSocket idle timeout — closing connection")
+                await websocket.close(code=1000, reason="Idle timeout")
+                return
+
             session_id = payload.get("session_id", "").strip()
             content = payload.get("content", "").strip()
 
@@ -51,6 +67,16 @@ async def ws_chat(websocket: WebSocket) -> None:
                     continue
     except WebSocketDisconnect:
         return
+    except Exception as exc:
+        # Catch-all : log unexpected errors to prevent silent worker crashes
+        logger.exception("Unexpected WebSocket error: %s", exc)
+        try:
+            await websocket.send_json(
+                {"type": "error", "detail": "Erreur interne du serveur."}
+            )
+            await websocket.close(code=1011)
+        except Exception:
+            pass
 
 
 async def _handle_message(

@@ -25,7 +25,7 @@ async def fetch_source_entry(entry: SourceEntry) -> dict:
             "from_cache_hint": False,
         }
 
-    html = await fetch_html(entry.url)
+    html = await fetch_html(entry.url, allow_stale=True)
     article = extract_article(html, entry.url)
     article["provider"] = entry.provider
     return article

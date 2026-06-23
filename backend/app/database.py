@@ -17,7 +17,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.config import settings
 
 # `echo=False` keeps logs quiet; flip to True to see every SQL statement.
-engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=False,
+    future=True,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+)
 
 # expire_on_commit=False lets us keep using objects after commit (handy for
 # returning them in API responses without an extra DB round-trip).

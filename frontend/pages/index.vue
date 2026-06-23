@@ -2,117 +2,180 @@
 definePageMeta({
   layout: 'default',
 })
+
+const router = useRouter()
+const pending = usePendingPrompt()
+
+function goToChat(text: string) {
+  pending.value = text
+  router.push('/chat')
+}
+
+function scrollToSections() {
+  document.getElementById('sections')?.scrollIntoView({ behavior: 'smooth' })
+}
 </script>
 
 <template>
-  <section class="home">
-    <div class="home__hero">
-      <h1>RehabBot</h1>
-      <p class="home__lead">
-        Assistant de rééducation alimenté par un LLM local et des outils MCP
-        qui consultent des sources publiques fiables (HAS, NHS, MedlinePlus…).
-      </p>
-      <NuxtLink to="/chat" class="home__cta">Démarrer une conversation</NuxtLink>
-    </div>
+  <div class="home">
+    <HeroBackground />
 
-    <aside class="home__disclaimer" role="note">
-      <strong>Avertissement</strong> — Ce projet est un prototype éducatif
-      (EPITECH MSc MSI). Il ne fournit pas de diagnostic ni de prescription.
-      Consultez toujours un professionnel de santé.
-    </aside>
+    <section class="home__hero">
+      <BrandGlyph class="home__glyph" :size="96" />
+      <h1 class="home__title">Rééducation IA en ligne</h1>
+      <HeroChatCard class="home__card" @submit="goToChat" />
+      <button
+        type="button"
+        class="home__chevron"
+        aria-label="Voir les sections suivantes"
+        @click="scrollToSections"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    </section>
 
-    <div class="home__features">
-      <article>
-        <h2>Sources multiples</h2>
+    <section id="sections" class="home__sections">
+      <article class="home__section">
+        <h2>Posez vos questions à l'IA</h2>
         <p>
-          Le serveur MCP agrège un catalogue HAS, NHS, MedlinePlus, CSP, VIDAL
-          et un bundle d'exercices locaux.
+          Lombalgie, genou, épaule… RehabBot consulte des sources publiques fiables
+          (HAS, NHS, MedlinePlus) via son serveur MCP et répond en français.
         </p>
       </article>
-      <article>
-        <h2>LLM local</h2>
+      <article class="home__section">
+        <h2>Exercices et conseils de rééducation</h2>
         <p>
-          Ollama exécute Qwen 3.5 9B sur votre machine — pas d'envoi de données
-          vers un cloud propriétaire.
+          Recherche d'exercices adaptés, conseils par zone anatomique et liens
+          vers des fiches patient validées — toujours à titre éducatif.
         </p>
       </article>
-      <article>
-        <h2>Sessions persistantes</h2>
+      <article class="home__section">
+        <h2>LLM local, données privées</h2>
         <p>
-          Votre conversation est sauvegardée 21 jours dans PostgreSQL et
-          reprise via le navigateur.
+          Ollama exécute Qwen 3.5 9B sur votre machine. Vos conversations sont
+          sauvegardées 21 jours dans PostgreSQL.
         </p>
       </article>
-    </div>
-  </section>
+    </section>
+
+
+  </div>
 </template>
 
 <style scoped>
+.home {
+  position: relative;
+  min-height: 100vh;
+}
+
 .home__hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: calc(var(--header-height) + 4vh) 1rem 3rem;
   text-align: center;
-  margin-bottom: 2rem;
 }
 
-.home h1 {
+.home__glyph {
+  margin-bottom: 1.25rem;
+}
+
+.home__title {
+  margin: 0 0 1.75rem;
+  font-size: 2.75rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: var(--color-text);
+}
+
+.home__card {
+  width: 100%;
+}
+
+.home__chevron {
+  margin-top: auto;
+  padding-top: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  animation: chevron-bounce 2s ease-in-out infinite;
+}
+
+.home__sections {
+  position: relative;
+  z-index: 1;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 4rem 1rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.home__section {
+  text-align: center;
+}
+
+.home__section h2 {
   margin: 0 0 0.75rem;
-  font-size: 2.25rem;
-  color: var(--color-primary);
+  font-size: clamp(1.35rem, 3vw, 1.65rem);
+  font-weight: 400;
 }
 
-.home__lead {
-  margin: 0 auto 1.5rem;
-  max-width: 36rem;
-  color: var(--color-muted);
-  font-size: 1.1rem;
+.home__section p {
+  margin: 0 auto;
+  max-width: 32rem;
+  color: var(--color-text-muted);
+  line-height: 1.65;
 }
 
-.home__cta {
-  display: inline-block;
-  padding: 0.85rem 1.75rem;
-  background: var(--color-primary);
-  color: #fff;
-  font-weight: 600;
-  border-radius: var(--radius);
-  text-decoration: none;
-}
-
-.home__cta:hover {
-  background: var(--color-primary-dark);
-  text-decoration: none;
+.home__footer {
+  position: relative;
+  z-index: 1;
+  padding: 2rem 1rem 2.5rem;
+  text-align: center;
+  border-top: 1px solid var(--color-border-subtle);
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
 }
 
 .home__disclaimer {
-  margin-bottom: 2rem;
-  padding: 1rem 1.25rem;
-  background: var(--color-warning-bg);
-  border: 1px solid var(--color-warning-border);
-  border-radius: var(--radius);
-  font-size: 0.95rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
 }
 
-.home__features {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+.home__legal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
 }
 
-.home__features article {
-  padding: 1.25rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+.home__legal a {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-.home__features h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.1rem;
-  color: var(--color-primary);
-}
+@media (max-width: 767px) {
+  .home__title {
+    font-size: 1.75rem;
+  }
 
-.home__features p {
-  margin: 0;
-  font-size: 0.95rem;
-  color: var(--color-muted);
+  .home__hero {
+    padding-top: calc(var(--header-height) + 2vh);
+  }
 }
 </style>

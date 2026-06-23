@@ -1,4 +1,8 @@
-"""Curated rehabilitation sources — no crawling, only known-good URLs."""
+"""Curated rehabilitation sources — only known-good URLs from approved providers.
+
+Providers: HAS (P0), VIDAL (P1), Ameli.fr (P1).
+Physiopedia, Axomove, and PMC have their own dedicated modules.
+"""
 
 from __future__ import annotations
 
@@ -15,29 +19,31 @@ class SourceEntry:
     provider: str
     kind: str = "html"  # html | pdf
     zone: str | None = None
+    lang: str = "fr"  # fr | en
 
 
-# HAS + French public health + hospital PDFs + international patient education.
+# ── HAS (P0) — Guidelines & Recommandations officielles ──────────────────────
+# ── VIDAL (P1) — Fiches synthétiques par pathologie ──────────────────────────
 SOURCE_CATALOG: tuple[SourceEntry, ...] = (
-    # --- HAS (France) ---
+    # --- HAS (France) — P0 ---
     SourceEntry(
         key="lombalgie",
         aliases=("dos", "lombalgie", "mal de dos", "back"),
-        url="https://www.has-sante.fr/jcms/c_2022459/fr/lombalgie-commune",
+        url="https://www.has-sante.fr/jcms/c_2961499/fr/prise-en-charge-du-patient-presentant-une-lombalgie-commune",
         provider="HAS",
         zone="dos",
     ),
     SourceEntry(
         key="genou",
         aliases=("genou", "arthrose genou", "knee"),
-        url="https://www.has-sante.fr/jcms/c_2721247/fr/arthrose-du-genou",
+        url="https://www.has-sante.fr/jcms/p_3360250/fr/synthese-prescription-d-activite-physique-arthroses-peripheriques",
         provider="HAS",
         zone="genou",
     ),
     SourceEntry(
         key="epaule",
         aliases=("epaule", "épaule", "coiffe rotateurs", "shoulder"),
-        url="https://www.has-sante.fr/jcms/c_2876386/fr/lesions-de-la-coiffe-des-rotateurs",
+        url="https://www.has-sante.fr/jcms/p_3459565/fr/conduite-diagnostique-devant-une-epaule-douloureuse-non-traumatique-de-l-adulte-et-prise-en-charge-des-tendinopathies-de-la-coiffe-des-rotateurs",
         provider="HAS",
         zone="epaule",
     ),
@@ -47,94 +53,70 @@ SOURCE_CATALOG: tuple[SourceEntry, ...] = (
         url="https://www.has-sante.fr/jcms/c_2876862/fr/consultation-et-prescription-medicale-d-activite-physique-a-des-fins-de-sante",
         provider="HAS",
     ),
-    # --- Santé publique France ---
     SourceEntry(
-        key="tms",
-        aliases=("tms", "troubles musculo", "membre superieur"),
-        url="https://www.santepubliquefrance.fr/maladies-liees-au-travail/troubles-musculo-squelettiques",
-        provider="Santé publique France",
-        zone="epaule",
-    ),
-    # --- Hospital PDF livrets (auto-rééducation) ---
-    SourceEntry(
-        key="neuropathie",
-        aliases=("neuropathie", "nerf", "neurologie"),
-        url="http://www.neuropathies-peripheriques.org/explorer/documents/LIVRET_auto_reeducation.pdf",
-        provider="AP-HP Bicêtre",
-        kind="pdf",
+        key="has_kinesitherapie",
+        aliases=("kinesitherapie", "kinésithérapie", "bilan kiné"),
+        url="https://www.has-sante.fr/jcms/c_2876862/fr/consultation-et-prescription-medicale-d-activite-physique-a-des-fins-de-sante",
+        provider="HAS",
         zone="general",
     ),
     SourceEntry(
-        key="membre_superieur",
-        aliases=("main", "bras", "hemiplegie", "avc", "membre superieur"),
-        url="https://www.chu-montpellier.fr/fileadmin/medias/Publications/livret-d-auto-reeducation-du-membre-superieur.pdf",
-        provider="CHU Montpellier",
-        kind="pdf",
-        zone="epaule",
-    ),
-    # --- MedlinePlus (NIH) — patient exercise sheets ---
-    SourceEntry(
-        key="rotator_cuff",
-        aliases=("coiffe", "rotateur", "rotator cuff"),
-        url="https://medlineplus.gov/ency/patientinstructions/000357.htm",
-        provider="MedlinePlus (NIH)",
-        zone="epaule",
+        key="has_cervicalgie",
+        aliases=("cervicalgie", "cervicales", "cou", "nuque"),
+        url="https://www.has-sante.fr/jcms/c_272262/fr/masso-kinesitherapie-dans-les-cervicalgies-communes-et-dans-le-cadre-du-coup-du-lapin-ou-whiplash",
+        provider="HAS",
+        zone="cou",
     ),
     SourceEntry(
-        key="hip_replacement",
-        aliases=("hanche", "prothese hanche", "hip"),
-        url="https://medlineplus.gov/ency/patientinstructions/000171.htm",
-        provider="MedlinePlus (NIH)",
-        zone="hanche",
+        key="has_avc",
+        aliases=("avc", "hemiplegie", "accident vasculaire"),
+        url="https://www.has-sante.fr/jcms/p_3100943/fr/post-avc-quatre-messages-cles-pour-une-reeducation-optimale",
+        provider="HAS",
+        zone="general",
     ),
-    SourceEntry(
-        key="back_pain_topic",
-        aliases=("lombalgie en", "chronic back"),
-        url="https://medlineplus.gov/backpain.html",
-        provider="MedlinePlus (NIH)",
-        zone="dos",
-    ),
-    # --- NHS / UK physiotherapy patient resources ---
-    SourceEntry(
-        key="nhs_back_exercises",
-        aliases=("exercices dos", "nhs dos"),
-        url="https://www.guysandstthomas.nhs.uk/health-information/low-back-pain/physiotherapy-and-exercises",
-        provider="NHS",
-        zone="dos",
-    ),
-    SourceEntry(
-        key="nhs_shoulder",
-        aliases=("exercices epaule", "nhs epaule"),
-        url="https://www.dynamichealth.nhs.uk/help-and-advice/shoulder-pain/",
-        provider="NHS",
-        zone="epaule",
-    ),
-    SourceEntry(
-        key="nhs_physio",
-        aliases=("physiotherapy", "kinesitherapie"),
-        url="https://www.nhs.uk/tests-and-treatments/physiotherapy/",
-        provider="NHS",
-    ),
-    # --- CSP (Chartered Society of Physiotherapy) ---
-    SourceEntry(
-        key="csp_msk",
-        aliases=("csp", "douleur articulaire", "msk"),
-        url="https://www.csp.org.uk/conditions/managing-pain-home",
-        provider="CSP",
-    ),
-    SourceEntry(
-        key="csp_exercises",
-        aliases=("csp exercices",),
-        url="https://www.csp.org.uk/public-patient/rehabilitation-exercises",
-        provider="CSP",
-    ),
-    # --- VIDAL (reco summaries; single pages only) ---
+
+    # --- VIDAL (P1) — Rééducation summaries ---
     SourceEntry(
         key="parkinson",
         aliases=("parkinson",),
         url="https://www.vidal.fr/maladies/recommandations/reeducation-fonctionnelle-parkinson-maladie-de-1740.html",
         provider="VIDAL",
         zone="general",
+    ),
+    SourceEntry(
+        key="vidal_lombalgie",
+        aliases=("vidal lombalgie", "vidal dos"),
+        url="https://www.vidal.fr/maladies/appareil-locomoteur/mal-dos-lombalgie/que-faire.html",
+        provider="VIDAL",
+        zone="dos",
+    ),
+    SourceEntry(
+        key="vidal_arthrose",
+        aliases=("vidal arthrose", "arthrose"),
+        url="https://www.vidal.fr/maladies/appareil-locomoteur/arthrose-genou-gonarthrose.html",
+        provider="VIDAL",
+        zone="genou",
+    ),
+    SourceEntry(
+        key="vidal_tendinite",
+        aliases=("tendinite", "tendinopathie"),
+        url="https://www.vidal.fr/maladies/appareil-locomoteur/tendinite.html",
+        provider="VIDAL",
+        zone="epaule",
+    ),
+    SourceEntry(
+        key="vidal_entorse",
+        aliases=("entorse", "vidal entorse"),
+        url="https://www.vidal.fr/maladies/appareil-locomoteur/entorse-foulure.html",
+        provider="VIDAL",
+        zone="cheville",
+    ),
+    SourceEntry(
+        key="vidal_sciatique",
+        aliases=("sciatique", "sciatalgie", "nerf sciatique"),
+        url="https://www.vidal.fr/maladies/appareil-locomoteur/sciatique.html",
+        provider="VIDAL",
+        zone="dos",
     ),
 )
 

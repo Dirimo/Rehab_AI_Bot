@@ -1,5 +1,6 @@
 """Extract readable text from HTML pages."""
 
+import re
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
@@ -7,6 +8,19 @@ from bs4 import BeautifulSoup
 
 def extract_article(html: str, url: str, max_chars: int = 6000) -> dict:
     """Return structured JSON: title, source, url, content."""
+    # Markdown from Firecrawl fallback (no HTML tags).
+    if html.lstrip().startswith("#") or ("## " in html and "<p>" not in html[:800]):
+        lines = [ln.strip() for ln in html.splitlines() if ln.strip()]
+        title = lines[0].lstrip("# ").strip() if lines else "Sans titre"
+        paragraphs = [re.sub(r"^#+\s*", "", ln) for ln in lines if len(ln) > 40]
+        content = "\n".join(paragraphs)[:max_chars]
+        return {
+            "title": title,
+            "source": urlparse(url).netloc,
+            "url": url,
+            "content": content,
+        }
+
     soup = BeautifulSoup(html, "html.parser")
 
     for tag in soup(["script", "style", "nav", "footer", "header", "noscript"]):
