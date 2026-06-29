@@ -51,10 +51,24 @@ export function useSession() {
     }
   }
 
+  async function listSessions(): Promise<SessionRead[]> {
+    try {
+      return await $fetch<SessionRead[]>(`${apiBase}/sessions`)
+    } catch {
+      return []
+    }
+  }
+
+  async function deleteSession(id: string): Promise<void> {
+    await $fetch(`${apiBase}/sessions/${id}`, { method: 'DELETE' })
+  }
+
   return {
     ensureSession,
     loadMessages,
     clearStoredSession,
     createSession,
+    listSessions,
+    deleteSession,
   }
 }

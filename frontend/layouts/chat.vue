@@ -1,7 +1,6 @@
 <template>
   <div class="chat-layout">
     <HeroBackground />
-    <AppHeader />
     <main class="chat-layout__main">
       <slot />
     </main>
@@ -26,8 +25,5 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: var(--content-max);
-  margin: 0 auto;
-  padding-top: var(--header-height);
 }
 </style>

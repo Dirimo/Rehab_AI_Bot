@@ -45,10 +45,13 @@ async def init_db() -> None:
     # Importing the models module registers every table=True class with
     # SQLModel.metadata. Without this import, metadata is empty and no tables
     # are created. (noqa: the import is needed for its side effect only.)
+    from sqlalchemy import text
     from app import models  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+        # Ensure 'title' column exists in 'sessions' table
+        await conn.execute(text("ALTER TABLE sessions ADD COLUMN IF NOT EXISTS title VARCHAR"))
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

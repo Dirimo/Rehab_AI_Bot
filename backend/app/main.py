@@ -20,18 +20,46 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import init_db
+from app.database import async_session_maker, init_db
 from app.routers import chat, messages, sessions, ws
+from app.routers.sessions import purge_expired_sessions
 
+
+import logging
+logger = logging.getLogger(__name__)
+
+async def _purge_loop():
+    """Background task to periodically purge expired sessions."""
+    while True:
+        try:
+            async with async_session_maker() as db:
+                count = await purge_expired_sessions(db)
+                if count > 0:
+                    logger.info("Purged %d expired sessions.", count)
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logger.error("Failed to purge sessions: %s", exc)
+        # Sleep for 1 hour
+        await asyncio.sleep(3600)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # --- startup ---
     # Create database tables if they don't exist yet.
     await init_db()
+    
+    # Start the background purge loop
+    purge_task = asyncio.create_task(_purge_loop())
+    
     yield
+    
     # --- shutdown ---
-    # (Nothing to clean up for now; the engine closes itself.)
+    purge_task.cancel()
+    try:
+        await purge_task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(

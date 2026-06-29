@@ -11,6 +11,10 @@ const props = defineProps<{
   initialMessage?: string
 }>()
 
+const emit = defineEmits<{
+  (e: 'sessionUpdated'): void
+}>()
+
 const config = useRuntimeConfig()
 const { loadMessages } = useSession()
 
@@ -107,6 +111,7 @@ function connectSocket() {
       })
       status.value = 'completed'
       nextTick(() => scrollToBottom())
+      emit('sessionUpdated')
     }
   }
 
@@ -149,9 +154,9 @@ async function ensureSocketOpen() {
   }
 }
 
-async function sendContent(text: string, showUserBubble = true) {
+async function sendContent(text: string, showUserBubble = true, force = false) {
   const trimmed = text.trim()
-  if (!trimmed || isBusy.value) return
+  if (!trimmed || (!force && isBusy.value)) return
 
   await ensureSocketOpen()
 
@@ -213,8 +218,7 @@ onMounted(async () => {
   await refreshHistory()
   connectSocket()
   if (props.initialMessage?.trim()) {
-    await nextTick()
-    await sendContent(props.initialMessage.trim())
+    await sendContent(props.initialMessage.trim(), true, true)
   }
 })
 
@@ -372,6 +376,9 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 12px;
   scroll-behavior: smooth;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
 }
 
 .chatbot__empty {
@@ -553,6 +560,9 @@ onBeforeUnmount(() => {
 .chatbot__input-area {
   flex-shrink: 0;
   padding: 0.5rem 0 1rem;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
 }
 
 .chatbot__chips {

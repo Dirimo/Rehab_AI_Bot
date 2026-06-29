@@ -42,6 +42,9 @@ class Session(SQLModel, table=True):
     # sessions router using settings.SESSION_EXPIRATION_DAYS.
     expires_at: datetime | None = Field(default=None)
 
+    # Automatically set to the first message's text (truncated) to display in the UI history.
+    title: str | None = Field(default=None)
+
 
 class Message(SQLModel, table=True):
     """One message belonging to a session."""

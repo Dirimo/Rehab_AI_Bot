@@ -26,6 +26,7 @@ class SessionRead(BaseModel):
     created_at: datetime
     expires_at: datetime
     is_expired: bool
+    title: str | None = None
 
 
 class MessageCreate(BaseModel):

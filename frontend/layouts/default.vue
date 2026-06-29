@@ -1,6 +1,5 @@
 <template>
   <div class="layout" :class="{ 'layout--hero': isHero }">
-    <AppHeader />
     <main class="layout__main">
       <slot />
     </main>

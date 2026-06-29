@@ -18,6 +18,7 @@ from app.models import (
     ROLE_USER,
     Message,
     ToolLog,
+    Session as ChatSession,
 )
 from app.prompts.system import SYSTEM_PROMPT
 from app.services.mcp_client import MCPClient, OLLAMA_TOOLS
@@ -59,6 +60,12 @@ class AgentLoop:
             content=user_content,
         )
         self.db.add(user_message)
+
+        # Set session title based on first user message if not already set
+        chat_session = await self.db.get(ChatSession, session_id)
+        if chat_session and not chat_session.title:
+            chat_session.title = user_content[:45] + ("..." if len(user_content) > 45 else "")
+            self.db.add(chat_session)
 
         # Construction du contexte pour Ollama
         history = await self._load_history(session_id)
@@ -171,11 +178,29 @@ class AgentLoop:
         result = await self.db.exec(
             select(Message)
             .where(Message.session_id == session_id)
-            .order_by(Message.created_at.asc())
+            .order_by(Message.created_at.desc())
         )
         rows = result.all()
+        
         max_messages = settings.AGENT_MAX_HISTORY_MESSAGES
-        return rows[-max_messages:] if len(rows) > max_messages else rows
+        max_chars = 12000  # Approx ~3000 tokens
+        
+        kept_rows = []
+        current_chars = 0
+        
+        for row in rows:
+            if len(kept_rows) >= max_messages:
+                break
+            
+            # If adding this message exceeds the limit, stop
+            if current_chars + len(row.content) > max_chars and kept_rows:
+                break
+                
+            kept_rows.append(row)
+            current_chars += len(row.content)
+            
+        # Reverse back to chronological order (oldest first)
+        return kept_rows[::-1]
 
     def _build_context(self, history):
         messages = [

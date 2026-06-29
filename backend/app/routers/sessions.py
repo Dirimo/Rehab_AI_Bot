@@ -33,7 +33,20 @@ def _to_read(chat_session: ChatSession) -> SessionRead:
         created_at=chat_session.created_at,
         expires_at=chat_session.expires_at,
         is_expired=now > expires_at,
+        title=chat_session.title,
     )
+
+
+@router.get("", response_model=list[SessionRead])
+async def list_sessions(
+    db: AsyncSession = Depends(get_session),
+) -> list[SessionRead]:
+    """List all sessions, sorted by created_at descending."""
+    result = await db.exec(
+        select(ChatSession).order_by(ChatSession.created_at.desc())
+    )
+    sessions = result.all()
+    return [_to_read(s) for s in sessions]
 
 
 @router.post("", response_model=SessionRead, status_code=status.HTTP_201_CREATED)
@@ -84,3 +97,25 @@ async def delete_session(
     await db.execute(delete(ToolLog).where(ToolLog.session_id == session_id))
     await db.delete(chat_session)
     await db.commit()
+
+
+async def purge_expired_sessions(db: AsyncSession) -> int:
+    """Delete all sessions where expires_at is in the past, and their children."""
+    now = datetime.now(timezone.utc)
+    
+    # Find expired sessions
+    result = await db.exec(select(ChatSession.id).where(ChatSession.expires_at < now))
+    expired_ids = result.all()
+    
+    if not expired_ids:
+        return 0
+        
+    # Delete children first
+    await db.execute(delete(Message).where(Message.session_id.in_(expired_ids)))
+    await db.execute(delete(ToolLog).where(ToolLog.session_id.in_(expired_ids)))
+    
+    # Delete sessions
+    await db.execute(delete(ChatSession).where(ChatSession.id.in_(expired_ids)))
+    await db.commit()
+    
+    return len(expired_ids)

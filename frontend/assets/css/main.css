@@ -106,17 +106,7 @@ h3 {
     linear-gradient(180deg, #fff7ee 0%, #eaf2fc 55%, #cfe3f8 100%);
 }
 
-.hero-bg__glow {
-  position: absolute;
-  top: 18%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(972px, 90vw);
-  height: 525px;
-  border-radius: 50%;
-  background: #fff;
-  opacity: 0.8;
-}
+
 
 .hero-bg__wave {
   position: absolute;
