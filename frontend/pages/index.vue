@@ -203,7 +203,7 @@ definePageMeta({
   background: var(--color-user-bubble);
   color: #ffffff;
   padding: 1rem 2rem;
-  border-radius: var(--radius-pill);
+  border-radius: 0;
   font-size: 1.1rem;
   font-weight: 500;
   box-shadow: var(--shadow-card);
@@ -275,7 +275,7 @@ definePageMeta({
 .feature-card {
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-card);
+  border-radius: 0;
   padding: 2.25rem 2rem;
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-soft);
@@ -294,7 +294,7 @@ definePageMeta({
 .feature-card__icon-wrapper {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: 0;
   background: var(--color-bg-sky);
   color: var(--color-text);
   display: flex;
@@ -325,7 +325,7 @@ definePageMeta({
   gap: 1.5rem;
   background: var(--color-error-bg);
   border: 1px solid rgba(220, 38, 38, 0.15);
-  border-radius: var(--radius-card);
+  border-radius: 0;
   padding: 1.75rem 2rem;
   box-shadow: var(--shadow-soft);
 }
