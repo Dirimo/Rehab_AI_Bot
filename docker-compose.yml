@@ -75,7 +75,7 @@ services:
       OLLAMA_TIMEOUT_SECONDS: "180"
       AGENT_MAX_HISTORY_MESSAGES: "20"
       AGENT_MAX_TOOL_ROUNDS: "2"
-      CORS_ORIGINS: '["http://localhost:3000"]'
+      CORS_ORIGINS: '["http://localhost:3000", "http://127.0.0.1:3000"]'
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

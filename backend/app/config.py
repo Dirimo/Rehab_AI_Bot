@@ -16,6 +16,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        
     )
 
     # --- Database -----------------------------------------------------------
@@ -45,7 +46,7 @@ class Settings(BaseSettings):
 
     # --- CORS: which frontend origins may call this API ---------------------
     # Nuxt's dev server runs on http://localhost:3000 by default.
-    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 
 # A single shared instance, imported as: from app.config import settings
