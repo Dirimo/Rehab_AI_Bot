@@ -88,22 +88,7 @@ definePageMeta({
         </div>
       </section>
 
-      <!-- Disclaimer warning -->
-      <section class="disclaimer-section">
-        <div class="disclaimer-card">
-          <svg class="disclaimer-card__icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-            <line x1="12" y1="9" x2="12" y2="13"></line>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-          </svg>
-          <div class="disclaimer-card__text">
-            <h4 class="disclaimer-card__title">Prototype Éducatif & Prototype Open-Source</h4>
-            <p class="disclaimer-card__desc">
-              Cette application est un démonstrateur de technologie. Le chatbot RehabBot ne doit en aucun cas remplacer les conseils, le diagnostic ou le plan de traitement d'un physiothérapeute ou d'un autre professionnel de santé qualifié.
-            </p>
-          </div>
-        </div>
-      </section>
+
     </main>
   </div>
 </template>
