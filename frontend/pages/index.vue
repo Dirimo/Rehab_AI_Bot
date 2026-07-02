@@ -77,12 +77,13 @@ definePageMeta({
           <div class="feature-card">
             <div class="feature-card__icon-wrapper">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
             </div>
-            <h3 class="feature-card__title">Respect de votre vie privée</h3>
+            <h3 class="feature-card__title">Accompagnement 24h/24</h3>
             <p class="feature-card__desc">
-              Toutes vos discussions et vos suivis d'exercices en ligne sont entièrement confidentiels, sécurisés et traités localement.
+              Une assistance disponible à tout moment pour répondre à vos questions et vous guider dans vos mouvements à la maison.
             </p>
           </div>
         </div>
