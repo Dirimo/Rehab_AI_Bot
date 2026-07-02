@@ -50,7 +50,7 @@ definePageMeta({
 
       <!-- Features grid section -->
       <section class="features-section">
-        <h2 class="features-section__title">Pourquoi utiliser RehabBot ?</h2>
+        <h2 class="features-section__title">Comment ça marche ?</h2>
         <div class="features-grid">
           <div class="feature-card">
             <div class="feature-card__icon-wrapper">
@@ -60,9 +60,9 @@ definePageMeta({
                 <line x1="12" y1="8" x2="12.01" y2="8"></line>
               </svg>
             </div>
-            <h3 class="feature-card__title">Sources Fiables & Officielles</h3>
+            <h3 class="feature-card__title">Des conseils fiables</h3>
             <p class="feature-card__desc">
-              Le chatbot consulte directement la Haute Autorité de Santé (HAS), la NHS anglaise, MedlinePlus, et d'autres publications médicales fiables.
+              Le robot s'appuie sur des guides de santé officiels et des articles médicaux sérieux pour répondre précisément à vos besoins.
             </p>
           </div>
 
@@ -72,9 +72,9 @@ definePageMeta({
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
             </div>
-            <h3 class="feature-card__title">Traduction Automatique</h3>
+            <h3 class="feature-card__title">Facile d'accès en français</h3>
             <p class="feature-card__desc">
-              Les connaissances des meilleures sources scientifiques en anglais sont automatiquement traduites et synthétisées en français par un modèle IA local.
+              Il cherche les meilleures explications médicales (même celles rédigées en anglais) et vous les résume simplement en français.
             </p>
           </div>
 
@@ -84,9 +84,9 @@ definePageMeta({
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
               </svg>
             </div>
-            <h3 class="feature-card__title">Sécurisé & Local</h3>
+            <h3 class="feature-card__title">Respect de votre vie privée</h3>
             <p class="feature-card__desc">
-              Propulsé par un modèle LLM local de pointe (Ollama) pour garantir la confidentialité et le traitement sécurisé des données textuelles.
+              Toutes vos discussions sont entièrement confidentielles, sécurisées et traitées localement pour protéger vos données.
             </p>
           </div>
         </div>
