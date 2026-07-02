@@ -12,7 +12,7 @@ definePageMeta({
     <!-- Header / Brand logo -->
     <header class="showcase__header">
       <div class="showcase__brand">
-        <span class="showcase__wordmark">RehabBot</span>
+        <span class="showcase__wordmark">Rehab</span>
       </div>
     </header>
 
@@ -21,15 +21,15 @@ definePageMeta({
       <section class="hero-section">
         <div class="hero-section__content">
           <h1 class="hero-section__title">
-            Votre assistant virtuel de rééducation
+            Centre de Rééducation Rehab
           </h1>
           <p class="hero-section__subtitle">
-            Un chatbot intelligent pour guider vos exercices de physiothérapie et répondre à vos questions de santé, propulsé par des sources médicales fiables.
+            Des soins de physiothérapie sur-mesure au sein de notre établissement, accompagnés de notre assistant virtuel RehabBot pour vous guider à la maison.
           </p>
           
           <div class="hero-section__actions">
             <NuxtLink to="/chat" class="showcase__cta">
-              Démarrer RehabBot
+              Parler à l'assistant RehabBot
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12"></line>
                 <polyline points="12 5 19 12 12 19"></polyline>
@@ -50,19 +50,17 @@ definePageMeta({
 
       <!-- Features grid section -->
       <section class="features-section">
-        <h2 class="features-section__title">Comment ça marche ?</h2>
+        <h2 class="features-section__title">Notre approche globale de soin</h2>
         <div class="features-grid">
           <div class="feature-card">
             <div class="feature-card__icon-wrapper">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
               </svg>
             </div>
-            <h3 class="feature-card__title">Des conseils fiables</h3>
+            <h3 class="feature-card__title">Soins Physiques & Kinésithérapie</h3>
             <p class="feature-card__desc">
-              Le robot s'appuie sur des guides de santé officiels et des articles médicaux sérieux pour répondre précisément à vos besoins.
+              Des séances personnalisées et adaptées dispensées par nos praticiens directement dans notre centre de rééducation.
             </p>
           </div>
 
@@ -72,9 +70,9 @@ definePageMeta({
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
             </div>
-            <h3 class="feature-card__title">Facile d'accès en français</h3>
+            <h3 class="feature-card__title">Assistant Virtuel RehabBot</h3>
             <p class="feature-card__desc">
-              Il cherche les meilleures explications médicales (même celles rédigées en anglais) et vous les résume simplement en français.
+              Notre robot intelligent, disponible en ligne 24h/24, pour vous aider et vous guider dans vos exercices à la maison.
             </p>
           </div>
 
@@ -86,7 +84,7 @@ definePageMeta({
             </div>
             <h3 class="feature-card__title">Respect de votre vie privée</h3>
             <p class="feature-card__desc">
-              Toutes vos discussions sont entièrement confidentielles, sécurisées et traitées localement pour protéger vos données.
+              Toutes vos discussions et vos suivis d'exercices en ligne sont entièrement confidentiels, sécurisés et traités localement.
             </p>
           </div>
         </div>
@@ -103,7 +101,7 @@ definePageMeta({
           <div class="disclaimer-card__text">
             <h4 class="disclaimer-card__title">Prototype Éducatif & Prototype Open-Source</h4>
             <p class="disclaimer-card__desc">
-              Cette application est un démonstrateur de technologie. Elle ne doit en aucun cas remplacer les conseils, le diagnostic ou le plan de traitement d'un physiothérapeute ou d'un autre professionnel de santé qualifié.
+              Cette application est un démonstrateur de technologie. Le chatbot RehabBot ne doit en aucun cas remplacer les conseils, le diagnostic ou le plan de traitement d'un physiothérapeute ou d'un autre professionnel de santé qualifié.
             </p>
           </div>
         </div>
