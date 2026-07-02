@@ -15,10 +15,9 @@ async function loadSessionsList() {
   // Only show sessions that already have a title (i.e. at least one message sent)
   sessions.value = all.filter((s: any) => s.title)
 }
-
 function selectSession(id: string) {
   isSidebarOpen.value = false // Close sidebar on mobile
-  router.push(`/${id}`)
+  router.push(`/chat/${id}`)
 }
 
 async function removeSession(id: string) {
@@ -29,7 +28,7 @@ async function removeSession(id: string) {
       if (sessions.value.length > 0) {
         selectSession(sessions.value[0].id)
       } else {
-        router.push('/')
+        router.push('/chat')
       }
     }
   } catch {
@@ -67,7 +66,7 @@ defineExpose({
       </NuxtLink>
       
       <NuxtLink
-        to="/"
+        to="/chat"
         class="chat-sidebar__new-btn"
         @click="isSidebarOpen = false"
       >
@@ -185,7 +184,7 @@ defineExpose({
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+  border-radius: 0;
   box-shadow: var(--shadow-soft);
   transition: transform var(--transition-fast), background var(--transition-fast);
 }
