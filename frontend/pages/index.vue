@@ -12,7 +12,6 @@ definePageMeta({
     <!-- Header / Brand logo -->
     <header class="showcase__header">
       <div class="showcase__brand">
-        <BrandLogo3d :size="48" :rotate="false" />
         <span class="showcase__wordmark">RehabBot</span>
       </div>
     </header>
