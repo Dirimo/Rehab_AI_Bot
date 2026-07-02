@@ -39,10 +39,8 @@ definePageMeta({
         </div>
 
         <div class="hero-section__visual">
-          <div class="hero-section__logo-container">
-            <ClientOnly>
-              <BrandLogo3d :size="280" :rotate="true" />
-            </ClientOnly>
+          <div class="hero-section__image-container">
+            <img src="/rehab-showcase.png" alt="Rééducation physique au Centre Rehab" class="hero-section__image" />
             <div class="hero-section__logo-glow" />
           </div>
         </div>
@@ -66,9 +64,9 @@ definePageMeta({
 
           <div class="feature-card">
             <div class="feature-card__icon-wrapper">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-              </svg>
+              <ClientOnly>
+                <BrandLogo3d :size="36" :rotate="true" />
+              </ClientOnly>
             </div>
             <h3 class="feature-card__title">Assistant Virtuel RehabBot</h3>
             <p class="feature-card__desc">
@@ -228,14 +226,25 @@ definePageMeta({
   position: relative;
 }
 
-.hero-section__logo-container {
+.hero-section__image-container {
   position: relative;
   z-index: 2;
   transition: transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  background: #ffffff;
 }
 
-.hero-section__logo-container:hover {
-  transform: scale(1.05);
+.hero-section__image-container:hover {
+  transform: scale(1.02);
+}
+
+.hero-section__image {
+  display: block;
+  width: 100%;
+  max-width: 440px;
+  height: auto;
 }
 
 .hero-section__logo-glow {
